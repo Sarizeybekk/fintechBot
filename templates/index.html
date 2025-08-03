@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KCHOL Hisse Senedi Asistanı</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='1.1') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-chart-line"></i>
+                    <span>KCHOL Asistan</span>
+                </div>
+                <button class="new-chat-btn" onclick="startNewChat()">
+                    <i class="fas fa-plus"></i>
+                    Yeni Sohbet
+                </button>
+            </div>
+            
+            <div class="recent-chats">
+                <h3>Son Sohbetler</h3>
+                <div class="chat-item active">
+                    <i class="fas fa-comment"></i>
+                    <span>Fiyat Tahmini</span>
+                </div>
+                <div class="chat-item">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Teknik Analiz</span>
+                </div>
+                <div class="chat-item">
+                    <i class="fas fa-question-circle"></i>
+                    <span>Yardım</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Ayarlar</span>
+                </div>
+                <div class="nav-item">
+                    <i class="fas fa-question-circle"></i>
+                    <span>Yardım</span>
+                </div>
+                <button class="upgrade-btn">
+                    <i class="fas fa-crown"></i>
+                    PRO'ya Yükselt
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Chat Area -->
+        <div class="main-chat">
+            <div class="chat-header">
+                <div class="chat-title">
+                    <h2>KCHOL Hisse Senedi Asistanı</h2>
+                    <span class="chat-subtitle">Başlangıç: <script>document.write(new Date().toLocaleDateString('tr-TR'))</script></span>
+                </div>
+                <div class="chat-actions">
+                    <button class="action-btn" title="Ara">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <button class="action-btn" title="İndir">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button class="action-btn" title="Paylaş">
+                        <i class="fas fa-share"></i>
+                    </button>
+                    <div class="user-profile">
+                        <span>Misafir</span>
+                        <div class="avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <!-- Welcome Message -->
+                <div class="message bot-message">
+                    <div class="message-avatar">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="sender-name">KCHOL Asistan</span>
+                            <span class="message-time"><script>document.write(new Date().toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'}))</script></span>
+                        </div>
+                        <div class="message-text">
+                            <h3>KCHOL Hisse Senedi Fiyat Tahmini Asistanına Hoş Geldiniz!</h3>
+                            <p>Ben yapay zeka destekli bir finans uzmanıyım ve size yardımcı olmak için buradayım.</p>
+                            <p>KCHOL hisse senedi fiyat tahmini yapmak için aşağıdaki önerilerden birini seçebilir veya kendi sorunuzu yazabilirsiniz.</p>
+                            <p><strong>Yeni Özellik:</strong> Artık KCHOL, finans, yatırım ve ekonomi hakkında her türlü sorunuzu yanıtlayabilirim!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Suggested Prompts -->
+            <div class="suggested-prompts" id="suggestedPrompts">
+                <button class="prompt-btn" onclick="sendMessage('Fiyat tahmini yap')">
+                    <i class="fas fa-chart-line"></i>
+                    Fiyat tahmini yap
+                </button>
+                <button class="prompt-btn" onclick="sendMessage('KCHOL ne olacak?')">
+                    <i class="fas fa-question-circle"></i>
+                    KCHOL ne olacak?
+                </button>
+                <button class="prompt-btn" onclick="sendMessage('Yükselir mi?')">
+                    <i class="fas fa-arrow-up"></i>
+                    Yükselir mi?
+                </button>
+                <button class="prompt-btn" onclick="sendMessage('Düşer mi?')">
+                    <i class="fas fa-arrow-down"></i>
+                    Düşer mi?
+                </button>
+                <button class="prompt-btn" onclick="sendMessage('KCHOL şirketi hakkında bilgi ver')">
+                    <i class="fas fa-building"></i>
+                    KCHOL Şirketi
+                </button>
+                <button class="prompt-btn" onclick="sendMessage('Yatırım stratejisi öner')">
+                    <i class="fas fa-lightbulb"></i>
+                    Yatırım Stratejisi
+                </button>
+                <button class="prompt-btn" onclick="sendMessage('Yardım')">
+                    <i class="fas fa-info-circle"></i>
+                    Yardım
+                </button>
+            </div>
+
+            <!-- Message Input -->
+            <div class="message-input-container">
+                <div class="message-input-wrapper">
+                    <button class="attachment-btn" title="Dosya Ekle">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                    <input type="text" id="messageInput" placeholder="Mesajınızı yazın veya önerilerden seçin..." onkeypress="handleKeyPress(event)">
+                    <button class="send-btn" onclick="sendMessage()" title="Gönder">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Tahmin yapılıyor...</p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/tr.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js', v='1.1') }}"></script>
+</body>
+</html> 
