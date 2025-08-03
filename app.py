@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file
 import pickle
 import yfinance as yf
 import pandas as pd
@@ -11,11 +11,16 @@ from pathlib import Path
 from dotenv import load_dotenv
 import google.generativeai as genai
 from document_rag_agent import DocumentRAGAgent
+import uuid
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
+
+# Global sohbet geçmişi tutma
+chat_sessions = {}  # session_id -> chat_history
+current_session_id = None
 
 # Configure Gemini API
 genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
@@ -28,6 +33,67 @@ try:
 except Exception as e:
     print(f"Document RAG Agent yuklenemedi: {e}")
     document_rag_agent = None
+
+# Sohbet geçmişi yönetimi
+def create_new_session():
+    """Yeni sohbet oturumu oluştur"""
+    global current_session_id
+    session_id = str(uuid.uuid4())
+    chat_sessions[session_id] = {
+        'id': session_id,
+        'title': f'KCHOL Sohbet - {datetime.now().strftime("%d.%m.%Y %H:%M")}',
+        'created_at': datetime.now().isoformat(),
+        'messages': []
+    }
+    current_session_id = session_id
+    return session_id
+
+def get_current_session():
+    """Mevcut oturumu al veya yeni oluştur"""
+    global current_session_id
+    if current_session_id is None or current_session_id not in chat_sessions:
+        create_new_session()
+    return chat_sessions[current_session_id]
+
+def add_message_to_session(session_id, sender, message, message_type='text', data=None):
+    """Oturuma mesaj ekle"""
+    if session_id not in chat_sessions:
+        return False
+    
+    chat_sessions[session_id]['messages'].append({
+        'id': str(uuid.uuid4()),
+        'sender': sender,  # 'user' veya 'bot'
+        'message': message,
+        'type': message_type,
+        'data': data,
+        'timestamp': datetime.now().isoformat()
+    })
+    return True
+
+def export_chat_history(session_id, format='txt'):
+    """Sohbet geçmişini dışa aktar"""
+    if session_id not in chat_sessions:
+        return None
+    
+    session = chat_sessions[session_id]
+    
+    if format == 'txt':
+        content = f"KCHOL Hisse Senedi Asistanı - Sohbet Geçmişi\n"
+        content += f"Tarih: {session['created_at']}\n"
+        content += f"Oturum ID: {session['id']}\n"
+        content += "=" * 50 + "\n\n"
+        
+        for msg in session['messages']:
+            timestamp = datetime.fromisoformat(msg['timestamp']).strftime("%d.%m.%Y %H:%M:%S")
+            sender_name = "Siz" if msg['sender'] == 'user' else "KCHOL Asistan"
+            content += f"[{timestamp}] {sender_name}:\n{msg['message']}\n\n"
+        
+        return content
+    
+    elif format == 'json':
+        return json.dumps(session, indent=2, ensure_ascii=False)
+    
+    return None
 
 # Model yükleme
 def load_model():
@@ -182,12 +248,22 @@ def chat():
         message = data.get('message', '').lower()
         original_message = data.get('message', '')  # Orijinal mesajı koru
         
+        # Mevcut oturumu al
+        current_session = get_current_session()
+        session_id = current_session['id']
+        
+        # Kullanıcı mesajını oturuma ekle
+        add_message_to_session(session_id, 'user', original_message)
+        
         # Model yükleme
         model = load_model()
         if model is None:
+            error_response = 'Üzgünüm, model şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.'
+            add_message_to_session(session_id, 'bot', error_response, 'error')
             return jsonify({
-                'response': 'Üzgünüm, model şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.',
-                'type': 'error'
+                'response': error_response,
+                'type': 'error',
+                'session_id': session_id
             })
         
         # Kullanıcı mesajlarını analiz et
@@ -195,17 +271,23 @@ def chat():
             # Hisse verisi al
             df = get_stock_data()
             if df is None:
+                error_response = 'Hisse verisi alınamadı. Lütfen daha sonra tekrar deneyin.'
+                add_message_to_session(session_id, 'bot', error_response, 'error')
                 return jsonify({
-                    'response': 'Hisse verisi alınamadı. Lütfen daha sonra tekrar deneyin.',
-                    'type': 'error'
+                    'response': error_response,
+                    'type': 'error',
+                    'session_id': session_id
                 })
             
             # Tahmin yap
             result, error = predict_price(model, df)
             if error:
+                error_response = f'Tahmin yapılamadı: {error}'
+                add_message_to_session(session_id, 'bot', error_response, 'error')
                 return jsonify({
-                    'response': f'Tahmin yapılamadı: {error}',
-                    'type': 'error'
+                    'response': error_response,
+                    'type': 'error',
+                    'session_id': session_id
                 })
             
             # Hafta sonu kontrolü mesajı
@@ -227,15 +309,18 @@ Tahmin Tarihi: {result['prediction_date']}
 {trend_text}
             """
             
+            # Bot yanıtını oturuma ekle
+            add_message_to_session(session_id, 'bot', response, 'prediction', result)
+            
             return jsonify({
                 'response': response,
                 'type': 'prediction',
-                'data': result
+                'data': result,
+                'session_id': session_id
             })
             
         elif any(word in message for word in ['yardım', 'help', 'nasıl', 'ne yapabilir']):
-            return jsonify({
-                'response': """
+            help_response = """
 KCHOL Hisse Senedi Asistanı
 
 Size şu konularda yardımcı olabilirim:
@@ -246,15 +331,22 @@ Teknik Analiz: Mevcut fiyat ve tahmin edilen fiyat karşılaştırması
 Genel Sorular: KCHOL, finans, yatırım ve ekonomi hakkında her türlü soru
 
 Sadece sorunuzu yazın, size yardımcı olayım!
-                """,
-                'type': 'help'
+            """
+            add_message_to_session(session_id, 'bot', help_response, 'help')
+            return jsonify({
+                'response': help_response,
+                'type': 'help',
+                'session_id': session_id
             })
             
         elif any(word in message for word in ['merhaba', 'selam', 'hi', 'hello']) and len(message.split()) <= 3:
             # Sadece kısa selamlaşma mesajları için greeting
+            greeting_response = 'Merhaba! Ben KCHOL hisse senedi fiyat tahmin asistanınız. Size yardımcı olmak için buradayım. Fiyat tahmini yapmak ister misiniz?'
+            add_message_to_session(session_id, 'bot', greeting_response, 'greeting')
             return jsonify({
-                'response': 'Merhaba! Ben KCHOL hisse senedi fiyat tahmin asistanınız. Size yardımcı olmak için buradayım. Fiyat tahmini yapmak ister misiniz?',
-                'type': 'greeting'
+                'response': greeting_response,
+                'type': 'greeting',
+                'session_id': session_id
             })
             
         else:
@@ -264,24 +356,31 @@ Sadece sorunuzu yazın, size yardımcı olayım!
                     print(f"Document RAG Agent'a gonderilen mesaj: {original_message}")
                     rag_response = document_rag_agent.process_query(original_message)
                     print(f"Document RAG Agent'dan gelen yanit: {rag_response}")
+                    add_message_to_session(session_id, 'bot', rag_response, 'ai_response')
                     return jsonify({
                         'response': rag_response,
-                        'type': 'ai_response'
+                        'type': 'ai_response',
+                        'session_id': session_id
                     })
                 else:
                     # Fallback to basic Gemini
                     print(f"Gemini'ye gonderilen mesaj: {original_message}")
                     gemini_response = get_gemini_response(original_message)
                     print(f"Gemini'den gelen yanit: {gemini_response}")
+                    add_message_to_session(session_id, 'bot', gemini_response, 'ai_response')
                     return jsonify({
                         'response': gemini_response,
-                        'type': 'ai_response'
+                        'type': 'ai_response',
+                        'session_id': session_id
                     })
             except Exception as error:
                 print(f"AI yanit hatasi: {error}")
+                error_response = 'Anlamadigim bir soru sordunuz. Fiyat tahmini yapmak icin "fiyat tahmini yap" veya "ne olacak" diyebilirsiniz. Yardim icin "yardim" yazabilirsiniz.'
+                add_message_to_session(session_id, 'bot', error_response, 'unknown')
                 return jsonify({
-                    'response': 'Anlamadigim bir soru sordunuz. Fiyat tahmini yapmak icin "fiyat tahmini yap" veya "ne olacak" diyebilirsiniz. Yardim icin "yardim" yazabilirsiniz.',
-                    'type': 'unknown'
+                    'response': error_response,
+                    'type': 'unknown',
+                    'session_id': session_id
                 })
             
     except Exception as e:
@@ -333,6 +432,73 @@ def add_document():
             'message': f'Doküman kaydedildi: {file.filename}'
         })
         
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Hata: {str(e)}'
+        }), 500
+
+@app.route('/api/new_chat', methods=['POST'])
+def new_chat():
+    """Yeni sohbet başlat"""
+    try:
+        session_id = create_new_session()
+        return jsonify({
+            'success': True,
+            'session_id': session_id,
+            'message': 'Yeni sohbet başlatıldı'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Hata: {str(e)}'
+        }), 500
+
+@app.route('/api/chat_history', methods=['GET'])
+def get_chat_history():
+    """Sohbet geçmişini döndür"""
+    session_id = request.args.get('session_id')
+    if not session_id:
+        return jsonify({
+            'success': False,
+            'message': 'Oturum ID eksik'
+        }), 400
+    
+    history_content = export_chat_history(session_id)
+    if history_content is None:
+        return jsonify({
+            'success': False,
+            'message': 'Oturum bulunamadı'
+        }), 404
+    
+    import io
+    return send_file(
+        io.BytesIO(history_content.encode('utf-8')),
+        mimetype='text/plain',
+        as_attachment=True,
+        download_name=f'kchol_chat_history_{session_id}.txt'
+    )
+
+@app.route('/api/sessions', methods=['GET'])
+def get_sessions():
+    """Tüm sohbet oturumlarını listele"""
+    try:
+        sessions_list = []
+        for session_id, session_data in chat_sessions.items():
+            sessions_list.append({
+                'id': session_id,
+                'title': session_data['title'],
+                'created_at': session_data['created_at'],
+                'message_count': len(session_data['messages'])
+            })
+        
+        # Tarihe göre sırala (en yeni önce)
+        sessions_list.sort(key=lambda x: x['created_at'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'sessions': sessions_list
+        })
     except Exception as e:
         return jsonify({
             'success': False,

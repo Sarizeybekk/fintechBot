@@ -63,13 +63,13 @@
                     <span class="chat-subtitle">Başlangıç: <script>document.write(new Date().toLocaleDateString('tr-TR'))</script></span>
                 </div>
                 <div class="chat-actions">
-                    <button class="action-btn" title="Ara">
+                    <button class="action-btn" title="Ara" onclick="openSearchModal()">
                         <i class="fas fa-search"></i>
                     </button>
-                    <button class="action-btn" title="İndir">
+                    <button class="action-btn" id="downloadBtn" title="Sohbet Geçmişini İndir" onclick="downloadChatHistory()">
                         <i class="fas fa-download"></i>
                     </button>
-                    <button class="action-btn" title="Paylaş">
+                    <button class="action-btn" title="Paylaş" onclick="openShareModal()">
                         <i class="fas fa-share"></i>
                     </button>
                     <div class="user-profile">
@@ -141,9 +141,19 @@
                         <i class="fas fa-paperclip"></i>
                     </button>
                     <input type="text" id="messageInput" placeholder="Mesajınızı yazın veya önerilerden seçin..." onkeypress="handleKeyPress(event)">
+                    <button class="voice-btn" id="voiceBtn" title="Ses ile soru sor" onclick="toggleVoiceRecording()">
+                        <i class="fas fa-microphone"></i>
+                    </button>
                     <button class="send-btn" onclick="sendMessage()" title="Gönder">
                         <i class="fas fa-paper-plane"></i>
                     </button>
+                </div>
+                <!-- Voice Recording Status -->
+                <div class="voice-status" id="voiceStatus" style="display: none;">
+                    <div class="voice-indicator">
+                        <i class="fas fa-microphone-slash"></i>
+                        <span>Ses kaydı durduruldu</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -154,6 +164,107 @@
         <div class="loading-spinner">
             <i class="fas fa-spinner fa-spin"></i>
             <p>Tahmin yapılıyor...</p>
+        </div>
+    </div>
+
+    <!-- Search Modal -->
+    <div class="search-modal" id="searchModal">
+        <div class="search-modal-content">
+            <div class="search-modal-header">
+                <h3>Sohbet Geçmişinde Ara</h3>
+                <button class="close-btn" onclick="closeSearchModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="search-input-container">
+                <input type="text" id="searchInput" placeholder="Aranacak kelimeyi yazın..." onkeyup="searchMessages(event)">
+                <button class="search-btn" onclick="performSearch()">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+            <div class="search-results" id="searchResults">
+                <!-- Arama sonuçları buraya gelecek -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div class="share-modal" id="shareModal">
+        <div class="share-modal-content">
+            <div class="share-modal-header">
+                <h3>Paylaşım Seçenekleri</h3>
+                <button class="close-btn" onclick="closeShareModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="share-options">
+                <div class="share-option" onclick="shareToWhatsApp()">
+                    <div class="share-icon whatsapp">
+                        <i class="fab fa-whatsapp"></i>
+                    </div>
+                    <div class="share-text">
+                        <h4>WhatsApp</h4>
+                        <p>WhatsApp'ta paylaş</p>
+                    </div>
+                </div>
+                
+                <div class="share-option" onclick="shareToTelegram()">
+                    <div class="share-icon telegram">
+                        <i class="fab fa-telegram"></i>
+                    </div>
+                    <div class="share-text">
+                        <h4>Telegram</h4>
+                        <p>Telegram'da paylaş</p>
+                    </div>
+                </div>
+                
+                <div class="share-option" onclick="shareToEmail()">
+                    <div class="share-icon email">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div class="share-text">
+                        <h4>E-posta</h4>
+                        <p>E-posta ile paylaş</p>
+                    </div>
+                </div>
+                
+                <div class="share-option" onclick="copyToClipboard()">
+                    <div class="share-icon copy">
+                        <i class="fas fa-copy"></i>
+                    </div>
+                    <div class="share-text">
+                        <h4>Kopyala</h4>
+                        <p>Panoya kopyala</p>
+                    </div>
+                </div>
+                
+                <div class="share-option" onclick="shareToTwitter()">
+                    <div class="share-icon twitter">
+                        <i class="fab fa-twitter"></i>
+                    </div>
+                    <div class="share-text">
+                        <h4>Twitter</h4>
+                        <p>Twitter'da paylaş</p>
+                    </div>
+                </div>
+                
+                <div class="share-option" onclick="shareToLinkedIn()">
+                    <div class="share-icon linkedin">
+                        <i class="fab fa-linkedin"></i>
+                    </div>
+                    <div class="share-text">
+                        <h4>LinkedIn</h4>
+                        <p>LinkedIn'de paylaş</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="share-preview">
+                <h4>Paylaşım Önizlemesi</h4>
+                <div class="preview-content" id="sharePreview">
+                    <!-- Paylaşım önizlemesi buraya gelecek -->
+                </div>
+            </div>
         </div>
     </div>
 
