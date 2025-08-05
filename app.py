@@ -11,6 +11,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import google.generativeai as genai
 from document_rag_agent import DocumentRAGAgent
+from technical_analysis import TechnicalAnalysisEngine
 import uuid
 import requests
 from textblob import TextBlob
@@ -28,8 +29,14 @@ chat_sessions = {}  # session_id -> chat_history
 current_session_id = None
 
 # Configure Gemini API
-genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-gemini_model = genai.GenerativeModel(os.getenv('GEMINI_MODEL', 'gemini-1.5-flash'))
+GEMINI_API_KEY = os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    gemini_model = genai.GenerativeModel(os.getenv('GEMINI_MODEL', 'gemini-1.5-flash'))
+    print(f"✅ Gemini API anahtarı yüklendi: {GEMINI_API_KEY[:10]}...")
+else:
+    print("⚠️  Gemini API anahtarı bulunamadı. .env dosyasında GOOGLE_API_KEY veya GEMINI_API_KEY tanımlayın.")
+    gemini_model = None
 
 # News API Configuration
 NEWS_API_KEY = os.getenv('NEWS_API_KEY', '67b1d8b38f8b4ba8ba13fada3b9deac1')  # API key
@@ -42,6 +49,14 @@ try:
 except Exception as e:
     print(f"Document RAG Agent yuklenemedi: {e}")
     document_rag_agent = None
+
+# Initialize Technical Analysis Engine
+try:
+    technical_analysis_engine = TechnicalAnalysisEngine()
+    print("Technical Analysis Engine basariyla yuklendi")
+except Exception as e:
+    print(f"Technical Analysis Engine yuklenemedi: {e}")
+    technical_analysis_engine = None
 
 # Sohbet geçmişi yönetimi
 def create_new_session():
@@ -634,7 +649,58 @@ def chat():
             })
         
         # Kullanıcı mesajlarını analiz et
-        if any(word in message for word in ['tahmin', 'fiyat', 'ne olacak', 'yükselir mi', 'düşer mi']):
+        if any(word in message for word in ['teknik analiz', 'teknik', 'grafik', 'indikatör', 'rsi', 'macd', 'sma']):
+            # Teknik analiz yap
+            if technical_analysis_engine:
+                try:
+                    result = technical_analysis_engine.process_technical_analysis_request(original_message)
+                    
+                    if result.get('error'):
+                        error_response = f'Teknik analiz hatası: {result["error"]}'
+                        add_message_to_session(session_id, 'bot', error_response, 'error')
+                        return jsonify({
+                            'response': error_response,
+                            'type': 'error',
+                            'session_id': session_id
+                        })
+                    
+                    # Teknik analiz sonucunu formatla
+                    response = f"""
+KCHOL Teknik Analiz Raporu
+
+{result.get('analysis', '')}
+
+{result.get('summary', '')}
+                    """
+                    
+                    # Bot yanıtını oturuma ekle
+                    add_message_to_session(session_id, 'bot', response, 'technical_analysis', result)
+                    
+                    return jsonify({
+                        'response': response,
+                        'type': 'technical_analysis',
+                        'data': result,
+                        'session_id': session_id
+                    })
+                    
+                except Exception as e:
+                    error_response = f'Teknik analiz yapılamadı: {str(e)}'
+                    add_message_to_session(session_id, 'bot', error_response, 'error')
+                    return jsonify({
+                        'response': error_response,
+                        'type': 'error',
+                        'session_id': session_id
+                    })
+            else:
+                error_response = 'Teknik analiz motoru şu anda kullanılamıyor.'
+                add_message_to_session(session_id, 'bot', error_response, 'error')
+                return jsonify({
+                    'response': error_response,
+                    'type': 'error',
+                    'session_id': session_id
+                })
+                
+        elif any(word in message for word in ['tahmin', 'fiyat', 'ne olacak', 'yükselir mi', 'düşer mi']):
             # Hisse verisi al
             df = get_stock_data()
             if df is None:
@@ -717,10 +783,19 @@ KCHOL Hisse Senedi Asistanı
 
 Size şu konularda yardımcı olabilirim:
 
-Fiyat Tahmini: "Fiyat tahmini yap", "Ne olacak", "Yükselir mi" gibi sorular sorabilirsiniz
-Teknik Analiz: Mevcut fiyat ve tahmin edilen fiyat karşılaştırması
-Öneriler: Yatırım kararlarınız için veri tabanlı öneriler
-Genel Sorular: KCHOL, finans, yatırım ve ekonomi hakkında her türlü soru
+📊 Teknik Analiz: "Teknik analiz yap", "RSI göster", "MACD analizi" gibi sorular
+📈 Fiyat Tahmini: "Fiyat tahmini yap", "Ne olacak", "Yükselir mi" gibi sorular
+📰 Haber Analizi: "Haber analizi yap", "Son haberler" gibi sorular
+💡 Öneriler: Yatırım kararlarınız için veri tabanlı öneriler
+❓ Genel Sorular: KCHOL, finans, yatırım ve ekonomi hakkında her türlü soru
+
+Teknik Analiz Özellikleri:
+• RSI (Relative Strength Index)
+• MACD (Moving Average Convergence Divergence)
+• SMA (Simple Moving Average) - 20, 50, 200 günlük
+• Bollinger Bands
+• Williams %R
+• ATR (Average True Range)
 
 Sadece sorunuzu yazın, size yardımcı olayım!
             """
@@ -994,5 +1069,58 @@ def get_news_analysis():
             'message': f'Haber analizi hatası: {str(e)}'
         }), 500
 
+@app.route('/api/technical_analysis', methods=['POST'])
+def get_technical_analysis():
+    """Teknik analiz isteğini işle"""
+    try:
+        data = request.get_json()
+        user_request = data.get('request', '')
+        
+        if not technical_analysis_engine:
+            return jsonify({
+                'success': False,
+                'message': 'Teknik analiz motoru kullanılamıyor'
+            }), 500
+        
+        # Teknik analiz yap
+        result = technical_analysis_engine.process_technical_analysis_request(user_request)
+        
+        if result.get('error'):
+            # Gemini API olmadan da çalışabilmeli
+            if "Gemini model" in result['error']:
+                # Varsayılan analiz yap
+                df = technical_analysis_engine.get_stock_data()
+                if df is not None:
+                    charts = technical_analysis_engine.create_default_charts(df)
+                    analysis = technical_analysis_engine.analyze_technical_indicators(df)
+                    
+                    result = {
+                        "charts": charts,
+                        "analysis": analysis,
+                        "summary": f"KCHOL hisse senedi teknik analizi tamamlandı. {len(charts)} grafik oluşturuldu.",
+                        "error": None
+                    }
+                else:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Hisse verisi alınamadı'
+                    }), 500
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': result['error']
+                }), 500
+        
+        return jsonify({
+            'success': True,
+            'data': result
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Teknik analiz hatası: {str(e)}'
+        }), 500
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=3009)
+    app.run(debug=True, host='0.0.0.0', port=3005)

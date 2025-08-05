@@ -6,7 +6,7 @@
     <title>KCHOL Hisse Senedi Asistanı</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='1.2') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='1.3') }}">
 </head>
 <body>
     <div class="container">
@@ -25,33 +25,25 @@
             
             <div class="recent-chats">
                 <h3>Son Sohbetler</h3>
-                <div class="chat-item active">
-                    <i class="fas fa-comment"></i>
-                    <span>Fiyat Tahmini</span>
+                <div class="chat-list" id="chatList">
+                    <!-- Sohbet geçmişi buraya dinamik olarak eklenecek -->
                 </div>
-                <div class="chat-item">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>Teknik Analiz</span>
-                </div>
-                <div class="chat-item">
-                    <i class="fas fa-question-circle"></i>
-                    <span>Yardım</span>
+                <div class="no-chats" id="noChats">
+                    <i class="fas fa-comments"></i>
+                    <p>Henüz sohbet geçmişi yok</p>
+                    <span>Yeni bir sohbet başlatın</span>
                 </div>
             </div>
             
             <div class="sidebar-footer">
-                <div class="nav-item">
+                <div class="nav-item" onclick="openSettingsModal()">
                     <i class="fas fa-cog"></i>
                     <span>Ayarlar</span>
                 </div>
-                <div class="nav-item">
+                <div class="nav-item" onclick="openHelpModal()">
                     <i class="fas fa-question-circle"></i>
                     <span>Yardım</span>
                 </div>
-                <button class="upgrade-btn">
-                    <i class="fas fa-crown"></i>
-                    PRO'ya Yükselt
-                </button>
             </div>
         </div>
 
@@ -63,6 +55,9 @@
                     <span class="chat-subtitle">Başlangıç: <script>document.write(new Date().toLocaleDateString('tr-TR'))</script></span>
                 </div>
                 <div class="chat-actions">
+                    <button class="action-btn theme-btn" title="Tema Değiştir" onclick="openThemeModal()">
+                        <i class="fas fa-palette"></i>
+                    </button>
                     <button class="action-btn" title="Ara" onclick="openSearchModal()">
                         <i class="fas fa-search"></i>
                     </button>
@@ -124,6 +119,18 @@
                     <i class="fas fa-chart-line"></i>
                     Fiyat tahmini yap
                 </button>
+                <button class="prompt-btn" onclick="sendMessage('Teknik analiz yap')">
+                    <i class="fas fa-chart-bar"></i>
+                    Teknik Analiz
+                </button>
+                <button class="prompt-btn" onclick="sendMessage('RSI göster')">
+                    <i class="fas fa-percentage"></i>
+                    RSI Analizi
+                </button>
+                <button class="prompt-btn" onclick="sendMessage('MACD analizi')">
+                    <i class="fas fa-chart-area"></i>
+                    MACD Analizi
+                </button>
                 <button class="prompt-btn" onclick="sendMessage('KCHOL ne olacak?')">
                     <i class="fas fa-question-circle"></i>
                     KCHOL ne olacak?
@@ -144,13 +151,13 @@
                     <i class="fas fa-lightbulb"></i>
                     Yatırım Stratejisi
                 </button>
-                <button class="prompt-btn" onclick="sendMessage('Yardım')">
-                    <i class="fas fa-info-circle"></i>
-                    Yardım
-                </button>
                 <button class="prompt-btn" onclick="sendMessage('Haber analizi yap')">
                     <i class="fas fa-newspaper"></i>
                     Haber Analizi
+                </button>
+                <button class="prompt-btn" onclick="sendMessage('Yardım')">
+                    <i class="fas fa-info-circle"></i>
+                    Yardım
                 </button>
             </div>
 
@@ -296,9 +303,304 @@
         </div>
     </div>
 
+    <!-- Theme Modal -->
+    <div class="theme-modal" id="themeModal">
+        <div class="theme-modal-content">
+            <div class="theme-modal-header">
+                <h3>Tema Seçin</h3>
+                <button class="close-btn" onclick="closeThemeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="theme-options">
+                <div class="theme-option" onclick="changeTheme('light')" id="light-theme">
+                    <div class="theme-preview light-preview">
+                        <div class="preview-header"></div>
+                        <div class="preview-sidebar"></div>
+                        <div class="preview-main"></div>
+                    </div>
+                    <div class="theme-info">
+                        <h4>Açık Tema</h4>
+                        <p>Parlak ve temiz görünüm</p>
+                    </div>
+                </div>
+                
+                <div class="theme-option" onclick="changeTheme('dark')" id="dark-theme">
+                    <div class="theme-preview dark-preview">
+                        <div class="preview-header"></div>
+                        <div class="preview-sidebar"></div>
+                        <div class="preview-main"></div>
+                    </div>
+                    <div class="theme-info">
+                        <h4>Koyu Tema</h4>
+                        <p>Göz yormayan koyu görünüm</p>
+                    </div>
+                </div>
+                
+                <div class="theme-option" onclick="changeTheme('auto')" id="auto-theme">
+                    <div class="theme-preview auto-preview">
+                        <div class="preview-header"></div>
+                        <div class="preview-sidebar"></div>
+                        <div class="preview-main"></div>
+                    </div>
+                    <div class="theme-info">
+                        <h4>Otomatik</h4>
+                        <p>Sistem ayarlarına göre</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="help-modal" id="helpModal">
+        <div class="help-modal-content">
+            <div class="help-modal-header">
+                <h3>Yardım Merkezi</h3>
+                <button class="close-btn" onclick="closeHelpModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="help-content">
+                <div class="help-section">
+                    <h4><i class="fas fa-rocket"></i> Hızlı Başlangıç</h4>
+                    <p>KCHOL Hisse Senedi Asistanı ile fiyat tahminleri, teknik analizler ve yatırım tavsiyeleri alabilirsiniz.</p>
+                </div>
+                
+                <div class="help-section">
+                    <h4><i class="fas fa-comments"></i> Sohbet Özellikleri</h4>
+                    <ul>
+                        <li><strong>Yeni Sohbet:</strong> Yeni bir konuşma başlatın</li>
+                        <li><strong>Sohbet Geçmişi:</strong> Önceki sohbetlerinizi görüntüleyin</li>
+                        <li><strong>Mesaj İndirme:</strong> Sohbet geçmişinizi farklı formatlarda indirin</li>
+                        <li><strong>Tema Değiştirme:</strong> Açık/koyu tema arasında geçiş yapın</li>
+                    </ul>
+                </div>
+                
+                <div class="help-section">
+                    <h4><i class="fas fa-chart-line"></i> Önerilen Sorular</h4>
+                    <div class="suggested-questions">
+                        <button class="help-question" onclick="sendHelpQuestion('Fiyat tahmini yap')">
+                            <i class="fas fa-chart-line"></i>
+                            Fiyat tahmini yap
+                        </button>
+                        <button class="help-question" onclick="sendHelpQuestion('Teknik analiz yap')">
+                            <i class="fas fa-chart-bar"></i>
+                            Teknik analiz yap
+                        </button>
+                        <button class="help-question" onclick="sendHelpQuestion('RSI göster')">
+                            <i class="fas fa-percentage"></i>
+                            RSI Analizi
+                        </button>
+                        <button class="help-question" onclick="sendHelpQuestion('MACD analizi')">
+                            <i class="fas fa-chart-area"></i>
+                            MACD Analizi
+                        </button>
+                        <button class="help-question" onclick="sendHelpQuestion('KCHOL ne olacak?')">
+                            <i class="fas fa-question-circle"></i>
+                            KCHOL ne olacak?
+                        </button>
+                        <button class="help-question" onclick="sendHelpQuestion('Yatırım stratejisi öner')">
+                            <i class="fas fa-lightbulb"></i>
+                            Yatırım Stratejisi
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="help-section">
+                    <h4><i class="fas fa-download"></i> Grafik İndirme</h4>
+                    <p>Teknik analiz grafiklerini indirmek için:</p>
+                    <ol>
+                        <li>Teknik analiz yapın</li>
+                        <li>Grafik üzerindeki indirme butonuna tıklayın</li>
+                        <li>Veya "Tüm Grafikleri İndir" butonunu kullanın</li>
+                    </ol>
+                </div>
+                
+                <div class="help-section">
+                    <h4><i class="fas fa-cog"></i> Kısayollar</h4>
+                    <div class="shortcuts">
+                        <div class="shortcut-item">
+                            <kbd>Enter</kbd>
+                            <span>Mesaj gönder</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <kbd>Esc</kbd>
+                            <span>Genişletilmiş grafikleri kapat</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <kbd>Ctrl/Cmd + K</kbd>
+                            <span>Arama modalını aç</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="help-section">
+                    <h4><i class="fas fa-info-circle"></i> Hakkında</h4>
+                    <p>KCHOL Hisse Senedi Asistanı, yapay zeka destekli bir finans uzmanıdır. KCHOL hisse senedi hakkında fiyat tahminleri, teknik analizler ve yatırım tavsiyeleri sunar.</p>
+                    <p><strong>Versiyon:</strong> 1.3.0</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="settings-modal" id="settingsModal">
+        <div class="settings-modal-content">
+            <div class="settings-modal-header">
+                <h3>Ayarlar</h3>
+                <button class="close-btn" onclick="closeSettingsModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="settings-content">
+                <div class="settings-section">
+                    <h4><i class="fas fa-palette"></i> Görünüm</h4>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <label>Tema</label>
+                            <span>Uygulama temasını değiştirin</span>
+                        </div>
+                        <button class="setting-btn" onclick="openThemeModal()">
+                            <i class="fas fa-palette"></i>
+                            Tema Değiştir
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h4><i class="fas fa-comments"></i> Sohbet</h4>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <label>Otomatik Kaydetme</label>
+                            <span>Sohbet geçmişini otomatik kaydet</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="autoSave" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <label>Otomatik Kaydırma</label>
+                            <span>Yeni mesajlarda otomatik aşağı kaydır</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="autoScroll" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <label>Önerilen Sorular</label>
+                            <span>Sohbet başında önerilen soruları göster</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="showSuggestions" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h4><i class="fas fa-microphone"></i> Ses</h4>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <label>Ses Tanıma</label>
+                            <span>Mikrofon ile sesli soru sorma</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="voiceRecognition" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <label>Ses Dili</label>
+                            <span>Ses tanıma dili</span>
+                        </div>
+                        <select class="setting-select" id="voiceLanguage">
+                            <option value="tr-TR">Türkçe</option>
+                            <option value="en-US">İngilizce</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h4><i class="fas fa-chart-line"></i> Grafik</h4>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <label>Grafik Kalitesi</label>
+                            <span>İndirilen grafiklerin kalitesi</span>
+                        </div>
+                        <select class="setting-select" id="chartQuality">
+                            <option value="1">Düşük (1x)</option>
+                            <option value="2" selected>Yüksek (2x)</option>
+                            <option value="3">Çok Yüksek (3x)</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <label>Grafik Formatı</label>
+                            <span>İndirilen grafiklerin formatı</span>
+                        </div>
+                        <select class="setting-select" id="chartFormat">
+                            <option value="png" selected>PNG</option>
+                            <option value="jpg">JPG</option>
+                            <option value="svg">SVG</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h4><i class="fas fa-database"></i> Veri</h4>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <label>Sohbet Geçmişini Temizle</label>
+                            <span>Tüm sohbet geçmişini sil</span>
+                        </div>
+                        <button class="setting-btn danger" onclick="clearAllChats()">
+                            <i class="fas fa-trash"></i>
+                            Temizle
+                        </button>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <label>Ayarları Sıfırla</label>
+                            <span>Tüm ayarları varsayılana döndür</span>
+                        </div>
+                        <button class="setting-btn danger" onclick="resetSettings()">
+                            <i class="fas fa-undo"></i>
+                            Sıfırla
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h4><i class="fas fa-info-circle"></i> Uygulama</h4>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <label>Versiyon</label>
+                            <span>Uygulama versiyonu</span>
+                        </div>
+                        <span class="setting-value">1.3.0</span>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <label>Son Güncelleme</label>
+                            <span>Son güncelleme tarihi</span>
+                        </div>
+                        <span class="setting-value">2024-01-15</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/tr.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="{{ url_for('static', filename='js/script.js', v='1.2') }}"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js', v='1.3') }}"></script>
 </body>
 </html> 

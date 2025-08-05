@@ -4,6 +4,107 @@ let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
 let recognition = null;
+let currentTheme = 'light'; // Varsayılan tema
+let chatHistory = []; // Sohbet geçmişi
+let currentChatId = null; // Aktif sohbet ID'si
+
+// Tema yönetimi
+function initTheme() {
+    // Local storage'dan tema tercihini al
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+        currentTheme = savedTheme;
+        applyTheme(currentTheme);
+    } else {
+        // Sistem temasını kontrol et
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            currentTheme = 'auto';
+        }
+        applyTheme(currentTheme);
+    }
+}
+
+// Temayı uygula
+function applyTheme(theme) {
+    const body = document.documentElement;
+    
+    if (theme === 'auto') {
+        // Sistem temasını kontrol et
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            body.setAttribute('data-theme', 'dark');
+        } else {
+            body.setAttribute('data-theme', 'light');
+        }
+    } else {
+        body.setAttribute('data-theme', theme);
+    }
+    
+    currentTheme = theme;
+    localStorage.setItem('theme', theme);
+    
+    // Tema modal'ındaki aktif seçeneği güncelle
+    updateThemeModal();
+}
+
+// Tema modal'ını aç
+function openThemeModal() {
+    const themeModal = document.getElementById('themeModal');
+    themeModal.classList.add('show');
+    updateThemeModal();
+}
+
+// Tema modal'ını kapat
+function closeThemeModal() {
+    const themeModal = document.getElementById('themeModal');
+    themeModal.classList.remove('show');
+}
+
+// Tema modal'ındaki aktif seçeneği güncelle
+function updateThemeModal() {
+    const themeOptions = document.querySelectorAll('.theme-option');
+    themeOptions.forEach(option => {
+        option.classList.remove('active');
+    });
+    
+    const activeOption = document.getElementById(`${currentTheme}-theme`);
+    if (activeOption) {
+        activeOption.classList.add('active');
+    }
+}
+
+// Tema değiştir
+function changeTheme(theme) {
+    applyTheme(theme);
+    closeThemeModal();
+    
+    // Tema butonuna animasyon ekle
+    const themeBtn = document.querySelector('.theme-btn');
+    if (themeBtn) {
+        themeBtn.style.transform = 'scale(1.2) rotate(180deg)';
+        setTimeout(() => {
+            themeBtn.style.transform = 'scale(1) rotate(0deg)';
+        }, 300);
+    }
+    
+    const themeNames = {
+        'light': 'Açık Tema',
+        'dark': 'Koyu Tema',
+        'auto': 'Otomatik Tema'
+    };
+    
+    showToast(`${themeNames[theme]} uygulandı`, 'success');
+}
+
+// Sistem tema değişikliğini dinle
+function watchSystemTheme() {
+    if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (currentTheme === 'auto') {
+                applyTheme('auto');
+            }
+        });
+    }
+}
 
 // Speech Recognition API'sini başlat
 function initSpeechRecognition() {
@@ -125,14 +226,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // Moment.js Türkçe ayarları
     moment.locale('tr');
     
+    // Temayı başlat
+    initTheme();
+    watchSystemTheme();
+    
     // Speech Recognition'ı başlat
     initSpeechRecognition();
     
+    // Sohbet geçmişini başlat
+    initChatHistory();
+    
+    // Ayarları yükle ve uygula
+    const settings = JSON.parse(localStorage.getItem('settings') || '{}');
+    applySettings(settings);
+    
     // Input alanına odaklan
     document.getElementById('messageInput').focus();
-    
-    // Chat mesajlarını en alta kaydır
-    scrollToBottom();
 });
 
 // Mesaj gönderme fonksiyonu
@@ -177,6 +286,40 @@ async function sendMessage(message = null) {
 
 // Mesaj ekleme fonksiyonu
 function addMessage(text, sender, type = 'normal', data = null) {
+    // Mesajı DOM'a ekle
+    addMessageToDOM(text, sender, type, data, true);
+    
+    // Mesajı sohbet geçmişine kaydet
+    if (currentChatId) {
+        const currentChat = chatHistory.find(c => c.id === currentChatId);
+        if (currentChat) {
+            const message = {
+                text,
+                sender,
+                type,
+                data,
+                timestamp: new Date().toISOString()
+            };
+            
+            currentChat.messages.push(message);
+            
+            // Sohbet başlığını güncelle (ilk kullanıcı mesajından)
+            if (sender === 'user' && currentChat.title === 'Yeni Sohbet') {
+                currentChat.title = text.length > 30 ? text.substring(0, 30) + '...' : text;
+            }
+            
+            // Sohbet önizlemesini güncelle
+            currentChat.preview = text.length > 50 ? text.substring(0, 50) + '...' : text;
+            currentChat.timestamp = new Date().toISOString();
+            
+            saveChatHistory();
+            renderChatList();
+        }
+    }
+}
+
+// Mesajı DOM'a ekle
+function addMessageToDOM(text, sender, type = 'normal', data = null, scroll = true) {
     const chatMessages = document.getElementById('chatMessages');
     const messageDiv = document.createElement('div');
     const currentTime = moment().format('HH:mm');
@@ -204,7 +347,9 @@ function addMessage(text, sender, type = 'normal', data = null) {
     chatMessages.appendChild(messageDiv);
     
     // Mesajları en alta kaydır
+    if (scroll) {
     scrollToBottom();
+    }
 }
 
 // Mesaj formatlama fonksiyonu
@@ -233,6 +378,72 @@ function formatMessage(text, type, data) {
                     <span class="prediction-label">Tahmin Tarihi:</span>
                     <span class="prediction-value">${data.prediction_date}</span>
                 </div>
+            </div>
+        `;
+    }
+    
+    // Teknik analiz için özel formatlama
+    if (type === 'technical_analysis' && data) {
+        console.log('Technical analysis data:', data);
+        let chartsHtml = '';
+        
+        if (data.charts && data.charts.length > 0) {
+            console.log('Charts found:', data.charts.length);
+            chartsHtml = '<div class="technical-charts">';
+            
+            // Tüm grafikleri indir butonu (birden fazla grafik varsa)
+            if (data.charts.length > 1) {
+                chartsHtml += `
+                    <div class="download-all-charts">
+                        <button class="download-all-btn" onclick="downloadAllCharts()">
+                            <i class="fas fa-download"></i>
+                            Tüm Grafikleri İndir (${data.charts.length})
+                        </button>
+                    </div>
+                `;
+            }
+            
+            data.charts.forEach((chart, index) => {
+                console.log(`Chart ${index}:`, chart.title, 'Data length:', chart.data.length);
+                const chartId = `chart-${Date.now()}-${index}`;
+                chartsHtml += `
+                    <div class="chart-container" id="${chartId}-container">
+                        <div class="chart-header">
+                        <h4>${chart.title}</h4>
+                            <div class="chart-controls">
+                                <button class="chart-btn" onclick="downloadChart('${chartId}')" title="Grafiği İndir">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                                <button class="chart-btn" onclick="toggleChartSize('${chartId}')" title="Büyüt/Küçült">
+                                    <i class="fas fa-expand"></i>
+                                </button>
+                                <button class="chart-btn" onclick="resetChartSize('${chartId}')" title="Orijinal Boyut">
+                                    <i class="fas fa-compress"></i>
+                                </button>
+                                <button class="chart-btn close-chart-btn" onclick="closeExpandedChart('${chartId}')" title="Kapat" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chart-image" id="${chartId}">
+                            ${chart.data}
+                        </div>
+                    </div>
+                `;
+            });
+            chartsHtml += '</div>';
+        } else {
+            console.log('No charts found in data');
+        }
+        
+        return `
+            <div class="technical-analysis">
+                <div class="analysis-content">
+                    ${text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                          .replace(/\n/g, '<br>')}
+                </div>
+                ${chartsHtml}
             </div>
         `;
     }
@@ -291,24 +502,16 @@ function handleKeyPress(event) {
 
 // Yeni sohbet başlatma
 function startNewChat() {
-    const chatMessages = document.getElementById('chatMessages');
-    const suggestedPrompts = document.getElementById('suggestedPrompts');
-    
-    // Mesajları temizle (ilk karşılama mesajı hariç)
-    const welcomeMessage = chatMessages.querySelector('.bot-message');
-    chatMessages.innerHTML = '';
-    chatMessages.appendChild(welcomeMessage);
+    createNewChat();
     
     // Önerileri göster
+    const suggestedPrompts = document.getElementById('suggestedPrompts');
     suggestedPrompts.style.display = 'flex';
     
     // Input alanını temizle ve odaklan
     const messageInput = document.getElementById('messageInput');
     messageInput.value = '';
     messageInput.focus();
-    
-    // Mesajları en alta kaydır
-    scrollToBottom();
 }
 
 // Öneri butonlarını gizleme (tahmin yapıldıktan sonra)
@@ -780,8 +983,530 @@ function toggleDownloadDropdown() {
 document.addEventListener('click', function(event) {
     const downloadDropdown = document.querySelector('.download-dropdown');
     const downloadOptions = document.getElementById('downloadOptions');
+    const themeModal = document.getElementById('themeModal');
+    const helpModal = document.getElementById('helpModal');
+    const settingsModal = document.getElementById('settingsModal');
     
     if (downloadDropdown && !downloadDropdown.contains(event.target)) {
         downloadOptions.classList.remove('show');
     }
+    
+    // Tema modal'ını kapat
+    if (themeModal && event.target === themeModal) {
+        closeThemeModal();
+    }
+    
+    // Yardım modal'ını kapat
+    if (helpModal && event.target === helpModal) {
+        closeHelpModal();
+    }
+    
+    // Ayarlar modal'ını kapat
+    if (settingsModal && event.target === settingsModal) {
+        closeSettingsModal();
+    }
 }); 
+
+// Grafik indirme fonksiyonu
+async function downloadChart(chartId) {
+    try {
+        showToast('Grafik indiriliyor...', 'info');
+        
+        const chartElement = document.getElementById(chartId);
+        if (!chartElement) {
+            showToast('Grafik bulunamadı', 'error');
+            return;
+        }
+        
+        // html2canvas kütüphanesini yükle (eğer yoksa)
+        if (typeof html2canvas === 'undefined') {
+            await loadHtml2Canvas();
+        }
+        
+        // Grafiğin ekran görüntüsünü al
+        const canvas = await html2canvas(chartElement, {
+            backgroundColor: '#ffffff',
+            scale: 2, // Yüksek kalite
+            useCORS: true,
+            allowTaint: true,
+            logging: false
+        });
+        
+        // Canvas'ı blob'a çevir
+        canvas.toBlob(async (blob) => {
+            // Dosya adı oluştur
+            const chartTitle = chartElement.closest('.chart-container').querySelector('h4').textContent;
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const filename = `${chartTitle.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}.png`;
+            
+            // Dosyayı indir
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showToast('Grafik başarıyla indirildi!', 'success');
+            
+        }, 'image/png', 0.9);
+        
+    } catch (error) {
+        console.error('Grafik indirme hatası:', error);
+        showToast('Grafik indirilemedi', 'error');
+    }
+}
+
+// Tüm grafikleri indir
+async function downloadAllCharts() {
+    try {
+        const chartContainers = document.querySelectorAll('.chart-container');
+        if (chartContainers.length === 0) {
+            showToast('İndirilecek grafik bulunamadı', 'error');
+            return;
+        }
+        
+        showToast(`${chartContainers.length} grafik indiriliyor...`, 'info');
+        
+        // html2canvas kütüphanesini yükle (eğer yoksa)
+        if (typeof html2canvas === 'undefined') {
+            await loadHtml2Canvas();
+        }
+        
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        
+        for (let i = 0; i < chartContainers.length; i++) {
+            const container = chartContainers[i];
+            const chartElement = container.querySelector('.chart-image');
+            const chartTitle = container.querySelector('h4').textContent;
+            
+            try {
+                // Grafiğin ekran görüntüsünü al
+                const canvas = await html2canvas(chartElement, {
+                    backgroundColor: '#ffffff',
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    logging: false
+                });
+                
+                // Canvas'ı blob'a çevir
+                canvas.toBlob(async (blob) => {
+                    const filename = `${chartTitle.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}_${i + 1}.png`;
+                    
+                    // Dosyayı indir
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 'image/png', 0.9);
+                
+                // Grafikler arasında kısa bir bekleme
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+            } catch (error) {
+                console.error(`Grafik ${i + 1} indirme hatası:`, error);
+            }
+        }
+        
+        showToast('Tüm grafikler başarıyla indirildi!', 'success');
+        
+    } catch (error) {
+        console.error('Toplu grafik indirme hatası:', error);
+        showToast('Grafikler indirilirken hata oluştu', 'error');
+    }
+}
+
+// Grafik boyutunu değiştir
+function toggleChartSize(chartId) {
+    const chartContainer = document.getElementById(`${chartId}-container`);
+    const chartImage = document.getElementById(chartId);
+    const expandBtn = chartContainer.querySelector('.fa-expand');
+    const compressBtn = chartContainer.querySelector('.fa-compress');
+    const closeBtn = chartContainer.querySelector('.close-chart-btn');
+    
+    if (chartContainer.classList.contains('expanded')) {
+        // Küçült
+        chartContainer.classList.remove('expanded');
+        chartImage.style.maxWidth = '100%';
+        chartImage.style.maxHeight = '300px';
+        expandBtn.style.display = 'inline';
+        compressBtn.style.display = 'none';
+        closeBtn.style.display = 'none';
+        showToast('Grafik küçültüldü', 'info');
+    } else {
+        // Büyüt
+        chartContainer.classList.add('expanded');
+        chartImage.style.maxWidth = '90vw';
+        chartImage.style.maxHeight = '70vh';
+        expandBtn.style.display = 'none';
+        compressBtn.style.display = 'inline';
+        closeBtn.style.display = 'inline';
+        showToast('Grafik büyütüldü', 'info');
+    }
+}
+
+// Grafik boyutunu sıfırla
+function resetChartSize(chartId) {
+    const chartContainer = document.getElementById(`${chartId}-container`);
+    const chartImage = document.getElementById(chartId);
+    const expandBtn = chartContainer.querySelector('.fa-expand');
+    const compressBtn = chartContainer.querySelector('.fa-compress');
+    const closeBtn = chartContainer.querySelector('.close-chart-btn');
+    
+    chartContainer.classList.remove('expanded');
+    chartImage.style.maxWidth = '100%';
+    chartImage.style.maxHeight = '300px';
+    expandBtn.style.display = 'inline';
+    compressBtn.style.display = 'none';
+    closeBtn.style.display = 'none';
+    showToast('Grafik orijinal boyuta getirildi', 'info');
+} 
+
+// Genişletilmiş grafikleri kapat
+function closeExpandedChart(chartId) {
+    const chartContainer = document.getElementById(`${chartId}-container`);
+    const chartImage = document.getElementById(chartId);
+    const expandBtn = chartContainer.querySelector('.fa-expand');
+    const compressBtn = chartContainer.querySelector('.fa-compress');
+    const closeBtn = chartContainer.querySelector('.close-chart-btn');
+    
+    chartContainer.classList.remove('expanded');
+    chartImage.style.maxWidth = '100%';
+    chartImage.style.maxHeight = '300px';
+    expandBtn.style.display = 'inline';
+    compressBtn.style.display = 'none';
+    closeBtn.style.display = 'none';
+    showToast('Grafik kapatıldı', 'info');
+} 
+
+ 
+
+// Yardım modal'ını aç
+function openHelpModal() {
+    const helpModal = document.getElementById('helpModal');
+    helpModal.classList.add('show');
+}
+
+// Yardım modal'ını kapat
+function closeHelpModal() {
+    const helpModal = document.getElementById('helpModal');
+    helpModal.classList.remove('show');
+}
+
+// Yardım modal'ından soru gönder
+function sendHelpQuestion(question) {
+    closeHelpModal();
+    
+    // Mesajı input'a yaz ve gönder
+    const messageInput = document.getElementById('messageInput');
+    messageInput.value = question;
+    
+    // Kısa bir gecikme ile gönder
+    setTimeout(() => {
+        sendMessage();
+    }, 100);
+}
+
+// Klavye kısayolları
+document.addEventListener('keydown', function(event) {
+    // Ctrl/Cmd + K ile arama modalını aç
+    if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+        event.preventDefault();
+        openSearchModal();
+    }
+    
+    // ESC tuşu ile modalları kapat
+    if (event.key === 'Escape') {
+        const expandedCharts = document.querySelectorAll('.chart-container.expanded');
+        if (expandedCharts.length > 0) {
+            expandedCharts.forEach(chart => {
+                const chartId = chart.id.replace('-container', '');
+                closeExpandedChart(chartId);
+            });
+        } else {
+            closeSearchModal();
+            closeShareModal();
+            closeThemeModal();
+            closeHelpModal();
+            closeSettingsModal();
+        }
+    }
+}); 
+
+// Sohbet geçmişi yönetimi
+function initChatHistory() {
+    // Local storage'dan sohbet geçmişini yükle
+    const savedHistory = localStorage.getItem('chatHistory');
+    if (savedHistory) {
+        chatHistory = JSON.parse(savedHistory);
+        renderChatList();
+    } else {
+        // İlk sohbeti oluştur
+        createNewChat();
+    }
+}
+
+// Yeni sohbet oluştur
+function createNewChat() {
+    const chatId = Date.now().toString();
+    const newChat = {
+        id: chatId,
+        title: 'Yeni Sohbet',
+        preview: 'Henüz mesaj yok',
+        timestamp: new Date().toISOString(),
+        messages: []
+    };
+    
+    chatHistory.unshift(newChat);
+    currentChatId = chatId;
+    
+    saveChatHistory();
+    renderChatList();
+    clearChatMessages();
+    showWelcomeMessage();
+}
+
+// Sohbet geçmişini kaydet
+function saveChatHistory() {
+    localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+}
+
+// Sohbet listesini render et
+function renderChatList() {
+    const chatList = document.getElementById('chatList');
+    const noChats = document.getElementById('noChats');
+    
+    if (chatHistory.length === 0) {
+        chatList.style.display = 'none';
+        noChats.style.display = 'flex';
+        return;
+    }
+    
+    chatList.style.display = 'flex';
+    noChats.style.display = 'none';
+    
+    chatList.innerHTML = '';
+    
+    chatHistory.forEach(chat => {
+        const chatItem = document.createElement('div');
+        chatItem.className = `chat-list-item ${chat.id === currentChatId ? 'active' : ''}`;
+        chatItem.onclick = () => switchToChat(chat.id);
+        
+        const timeAgo = getTimeAgo(new Date(chat.timestamp));
+        
+        chatItem.innerHTML = `
+            <div class="chat-icon">
+                <i class="fas fa-comment"></i>
+            </div>
+            <div class="chat-content">
+                <div class="chat-title">${chat.title}</div>
+                <div class="chat-preview">${chat.preview}</div>
+            </div>
+            <div class="chat-time">${timeAgo}</div>
+            <button class="delete-chat" onclick="deleteChat('${chat.id}', event)" title="Sohbeti Sil">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        
+        chatList.appendChild(chatItem);
+    });
+}
+
+// Sohbete geç
+function switchToChat(chatId) {
+    currentChatId = chatId;
+    const chat = chatHistory.find(c => c.id === chatId);
+    
+    if (chat) {
+        renderChatList();
+        loadChatMessages(chat);
+    }
+}
+
+// Sohbet mesajlarını yükle
+function loadChatMessages(chat) {
+    const chatMessages = document.getElementById('chatMessages');
+    chatMessages.innerHTML = '';
+    
+    if (chat.messages.length === 0) {
+        showWelcomeMessage();
+    } else {
+        chat.messages.forEach(msg => {
+            addMessageToDOM(msg.text, msg.sender, msg.type, msg.data, false);
+        });
+    }
+    
+    scrollToBottom();
+}
+
+// Sohbeti sil
+function deleteChat(chatId, event) {
+    event.stopPropagation();
+    
+    if (confirm('Bu sohbeti silmek istediğinizden emin misiniz?')) {
+        const index = chatHistory.findIndex(c => c.id === chatId);
+        if (index > -1) {
+            chatHistory.splice(index, 1);
+            
+            // Eğer silinen sohbet aktif sohbetse, ilk sohbete geç
+            if (chatId === currentChatId) {
+                if (chatHistory.length > 0) {
+                    currentChatId = chatHistory[0].id;
+                    switchToChat(currentChatId);
+                } else {
+                    createNewChat();
+                }
+            }
+            
+            saveChatHistory();
+            renderChatList();
+        }
+    }
+}
+
+// Zaman önce hesapla
+function getTimeAgo(date) {
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Şimdi';
+    if (diffInMinutes < 60) return `${diffInMinutes} dk`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours} sa`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays} gün`;
+    
+    return date.toLocaleDateString('tr-TR');
+}
+
+// Hoş geldin mesajını göster
+function showWelcomeMessage() {
+    const chatMessages = document.getElementById('chatMessages');
+    chatMessages.innerHTML = `
+        <div class="message bot-message">
+            <div class="message-avatar">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="message-content">
+                <div class="message-header">
+                    <span class="sender-name">KCHOL Asistan</span>
+                    <span class="message-time">${new Date().toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})}</span>
+                </div>
+                <div class="message-text">
+                    <h3>KCHOL Hisse Senedi Fiyat Tahmini Asistanına Hoş Geldiniz!</h3>
+                    <p>Ben yapay zeka destekli bir finans uzmanıyım ve size yardımcı olmak için buradayım.</p>
+                    <p>KCHOL hisse senedi fiyat tahmini yapmak için aşağıdaki önerilerden birini seçebilir veya kendi sorunuzu yazabilirsiniz.</p>
+                    <p><strong>Yeni Özellik:</strong> Artık KCHOL, finans, yatırım ve ekonomi hakkında her türlü sorunuzu yanıtlayabilirim!</p>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Chat mesajlarını temizle
+function clearChatMessages() {
+    const chatMessages = document.getElementById('chatMessages');
+    chatMessages.innerHTML = '';
+} 
+
+// Ayarlar modal'ını aç
+function openSettingsModal() {
+    const settingsModal = document.getElementById('settingsModal');
+    settingsModal.classList.add('show');
+    loadSettings();
+}
+
+// Ayarlar modal'ını kapat
+function closeSettingsModal() {
+    const settingsModal = document.getElementById('settingsModal');
+    settingsModal.classList.remove('show');
+    saveSettings();
+}
+
+// Ayarları yükle
+function loadSettings() {
+    const settings = JSON.parse(localStorage.getItem('settings') || '{}');
+    
+    // Toggle switch'leri ayarla
+    document.getElementById('autoSave').checked = settings.autoSave !== false;
+    document.getElementById('autoScroll').checked = settings.autoScroll !== false;
+    document.getElementById('showSuggestions').checked = settings.showSuggestions !== false;
+    document.getElementById('voiceRecognition').checked = settings.voiceRecognition !== false;
+    
+    // Select'leri ayarla
+    document.getElementById('voiceLanguage').value = settings.voiceLanguage || 'tr-TR';
+    document.getElementById('chartQuality').value = settings.chartQuality || '2';
+    document.getElementById('chartFormat').value = settings.chartFormat || 'png';
+}
+
+// Ayarları kaydet
+function saveSettings() {
+    const settings = {
+        autoSave: document.getElementById('autoSave').checked,
+        autoScroll: document.getElementById('autoScroll').checked,
+        showSuggestions: document.getElementById('showSuggestions').checked,
+        voiceRecognition: document.getElementById('voiceRecognition').checked,
+        voiceLanguage: document.getElementById('voiceLanguage').value,
+        chartQuality: document.getElementById('chartQuality').value,
+        chartFormat: document.getElementById('chartFormat').value
+    };
+    
+    localStorage.setItem('settings', JSON.stringify(settings));
+    
+    // Ayarları uygula
+    applySettings(settings);
+}
+
+// Ayarları uygula
+function applySettings(settings) {
+    // Ses tanıma ayarlarını uygula
+    if (recognition) {
+        recognition.lang = settings.voiceLanguage;
+    }
+    
+    // Önerilen soruları göster/gizle
+    const suggestedPrompts = document.getElementById('suggestedPrompts');
+    if (suggestedPrompts) {
+        suggestedPrompts.style.display = settings.showSuggestions ? 'flex' : 'none';
+    }
+    
+    showToast('Ayarlar kaydedildi', 'success');
+}
+
+// Tüm sohbetleri temizle
+function clearAllChats() {
+    if (confirm('Tüm sohbet geçmişini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
+        chatHistory = [];
+        currentChatId = null;
+        localStorage.removeItem('chatHistory');
+        createNewChat();
+        showToast('Tüm sohbetler temizlendi', 'success');
+    }
+}
+
+// Ayarları sıfırla
+function resetSettings() {
+    if (confirm('Tüm ayarları varsayılana döndürmek istediğinizden emin misiniz?')) {
+        // Varsayılan ayarları yükle
+        document.getElementById('autoSave').checked = true;
+        document.getElementById('autoScroll').checked = true;
+        document.getElementById('showSuggestions').checked = true;
+        document.getElementById('voiceRecognition').checked = true;
+        document.getElementById('voiceLanguage').value = 'tr-TR';
+        document.getElementById('chartQuality').value = '2';
+        document.getElementById('chartFormat').value = 'png';
+        
+        // Ayarları kaydet ve uygula
+        saveSettings();
+        showToast('Ayarlar sıfırlandı', 'success');
+    }
+} 
