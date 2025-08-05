@@ -1075,6 +1075,9 @@ Kod:
             avg_atr = df['ATR'].mean()
             volatility_signal = "Yüksek volatilite" if atr > avg_atr * 1.5 else "Düşük volatilite" if atr < avg_atr * 0.5 else "Normal volatilite"
             
+            # Yatırım stratejisi önerileri
+            strategy_recommendations = self.generate_investment_strategy(df, current_rsi, macd_signal, sma_signal, bb_signal, volatility_signal)
+            
             analysis = f"""
 **KCHOL Teknik Analiz Raporu**
 
@@ -1104,18 +1107,119 @@ Kod:
 📈 **Trend Analizi:**
 {sma_signal}
 
-🎯 **Öneriler:**
+🎯 **Teknik Öneriler:**
 • RSI {current_rsi:.1f} seviyesinde {'aşırı alım' if current_rsi > 70 else 'aşırı satım' if current_rsi < 30 else 'nötr'} bölgesinde
 • MACD {'pozitif' if current_macd > current_signal else 'negatif'} sinyal veriyor
 • Williams %R {williams_signal} bölgesinde
 • Volatilite {volatility_signal.lower()} seviyesinde
 • {sma_signal}
+
+---
+
+**YATIRIM STRATEJİSİ ÖNERİLERİ**
+
+{strategy_recommendations}
 """
             
             return analysis
             
         except Exception as e:
             return f"Analiz hatası: {e}"
+    
+    def generate_investment_strategy(self, df, current_rsi, macd_signal, sma_signal, bb_signal, volatility_signal):
+        """Teknik analiz sonuçlarına göre yatırım stratejisi üret"""
+        try:
+            current_price = df['close'].iloc[-1]
+            sma20 = df['SMA20'].iloc[-1]
+            sma50 = df['SMA50'].iloc[-1]
+            sma200 = df['SMA200'].iloc[-1]
+            
+            # Risk seviyesi belirleme
+            risk_level = "Yüksek"
+            if "Normal volatilite" in volatility_signal:
+                risk_level = "Orta"
+            elif "Düşük volatilite" in volatility_signal:
+                risk_level = "Düşük"
+            
+            # Trend yönü belirleme
+            trend_direction = "Yükseliş"
+            if "düşüş" in sma_signal.lower():
+                trend_direction = "Düşüş"
+            elif "kararsız" in sma_signal.lower():
+                trend_direction = "Kararsız"
+            
+            # Kısa vadeli strateji
+            short_term_strategy = ""
+            if current_rsi > 70:
+                short_term_strategy = "Aşırı alım bölgesinde - Kısa vadede düzeltme beklenebilir. Mevcut pozisyonları koruyun, yeni alım yapmayın."
+            elif current_rsi < 30:
+                short_term_strategy = "Aşırı satım bölgesinde - Kısa vadede toparlanma beklenebilir. Dikkatli alım fırsatı olabilir."
+            else:
+                if "pozitif" in macd_signal.lower():
+                    short_term_strategy = "Momentum pozitif - Kısa vadeli alım fırsatları değerlendirilebilir."
+                else:
+                    short_term_strategy = "Momentum negatif - Kısa vadeli satış baskısı olabilir."
+            
+            # Orta vadeli strateji
+            medium_term_strategy = ""
+            if "güçlü yükseliş" in sma_signal.lower():
+                medium_term_strategy = "Güçlü yükseliş trendi - Orta vadeli pozisyon alımı uygun olabilir."
+            elif "güçlü düşüş" in sma_signal.lower():
+                medium_term_strategy = "Güçlü düşüş trendi - Orta vadeli pozisyon alımı için trend dönüşü bekleyin."
+            else:
+                medium_term_strategy = "Kararsız trend - Orta vadeli pozisyon için daha net sinyaller bekleyin."
+            
+            # Risk yönetimi önerileri
+            risk_management = ""
+            if risk_level == "Yüksek":
+                risk_management = "Yüksek volatilite - Stop-loss seviyelerini sıkı tutun, pozisyon büyüklüğünü azaltın."
+            elif risk_level == "Orta":
+                risk_management = "Normal volatilite - Standart risk yönetimi uygulayın."
+            else:
+                risk_management = "Düşük volatilite - Daha geniş stop-loss seviyeleri kullanabilirsiniz."
+            
+            # Bollinger Bands stratejisi
+            bb_strategy = ""
+            if "aşırı alım" in bb_signal.lower():
+                bb_strategy = "Bollinger üst bandına dokundu - Kısa vadede düzeltme beklenebilir."
+            elif "aşırı satım" in bb_signal.lower():
+                bb_strategy = "Bollinger alt bandına dokundu - Kısa vadede toparlanma beklenebilir."
+            else:
+                bb_strategy = "Bollinger bantları arasında - Normal fiyat hareketi."
+            
+            strategy = f"""
+**Kısa Vadeli Strateji (1-4 hafta):**
+{short_term_strategy}
+
+**Orta Vadeli Strateji (1-6 ay):**
+{medium_term_strategy}
+
+**Risk Yönetimi:**
+• Risk Seviyesi: {risk_level}
+• {risk_management}
+• Pozisyon büyüklüğünü risk toleransınıza göre ayarlayın
+• Farklı zaman dilimlerinde analiz yapın
+
+**Teknik Seviyeler:**
+• Destek: {sma50:.2f} TL (SMA 50)
+• Direnç: {sma20:.2f} TL (SMA 20)
+• Uzun vadeli trend: {sma200:.2f} TL (SMA 200)
+
+**Bollinger Bands Stratejisi:**
+{bb_strategy}
+
+**Genel Öneriler:**
+• Trend yönü: {trend_direction}
+• Volatilite: {volatility_signal}
+• Portföy çeşitlendirmesi yapın
+• Düzenli olarak analizleri güncelleyin
+
+**Not:** Bu öneriler teknik analiz sonuçlarına dayalıdır. Yatırım kararı vermeden önce profesyonel danışmanlık almanızı öneririm."""
+            
+            return strategy
+            
+        except Exception as e:
+            return f"Strateji üretme hatası: {e}"
     
     def analyze_rsi(self, df):
         """Sadece RSI analizi"""

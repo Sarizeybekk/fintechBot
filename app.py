@@ -233,27 +233,59 @@ def load_model():
 # Gemini AI ile genel soruları yanıtlama
 def get_gemini_response(user_message, context=""):
     try:
-        # Türkçe finans asistanı için prompt hazırlama
-        system_prompt = f"""
+        # Fiyat tahmini için özel prompt
+        if any(word in user_message.lower() for word in ['tahmin', 'fiyat', 'ne olacak', 'yükselir mi', 'düşer mi']):
+            system_prompt = f"""
+Sen profesyonel bir finans analisti olarak KCHOL hisse senedi fiyat tahmini yapıyorsun.
+
+Aşağıdaki verileri kullanarak net, anlaşılır ve profesyonel bir fiyat tahmini yanıtı ver:
+
+{context}
+
+Yanıt kuralları:
+1. Sadece Türkçe yanıt ver
+2. Emoji kullanma
+3. Düzyazı şeklinde yaz
+4. ChatGPT tarzında net ve kısa cevaplar ver
+5. Teknik jargon kullanma, anlaşılır dil kullan
+6. Yatırım tavsiyesi verme, sadece analiz sun
+7. Risk uyarısı ekle
+8. Maksimum 3-4 paragraf yaz
+9. Hata mesajı verme, sadece analiz yap
+
+Kullanıcı sorusu: {user_message}
+"""
+        else:
+            # Genel sorular için
+            system_prompt = f"""
 Sen Türkçe konuşan bir finans ve yatırım asistanısın. KCHOL hisse senedi ve genel finans konularında uzman bilgi veriyorsun.
 
 Kullanıcı sorusu: {user_message}
 
 Lütfen aşağıdaki kurallara uygun olarak yanıt ver:
 1. Sadece Türkçe yanıt ver
-2. Finansal tavsiye verme, sadece bilgilendirici ol
-3. KCHOL hisse senedi hakkında sorulara özel önem ver
-4. Kısa ve öz yanıtlar ver
-5. Profesyonel ve anlaşılır dil kullan
+2. Emoji kullanma
+3. Düzyazı şeklinde yaz
+4. Finansal tavsiye verme, sadece bilgilendirici ol
+5. KCHOL hisse senedi hakkında sorulara özel önem ver
+6. Kısa ve öz yanıtlar ver
+7. Profesyonel ve anlaşılır dil kullan
+8. Hata mesajı verme, sadece bilgi ver
 
 {context}
-        """
+"""
         
         response = gemini_model.generate_content(system_prompt)
-        return response.text.strip()
+        response_text = response.text.strip()
+        
+        # Eğer Gemini hata mesajı veriyorsa None döndür
+        if "Üzgünüm" in response_text or "şu anda yanıt veremiyorum" in response_text or "error" in response_text.lower():
+            return None
+            
+        return response_text
     except Exception as e:
         print(f"Gemini API hatası: {e}")
-        return "Üzgünüm, şu anda yanıt veremiyorum. Lütfen daha sonra tekrar deneyin."
+        return None
 
 # Hisse verisi alma ve özellik çıkarma
 def get_stock_data(symbol='KCHOL.IS', days=300):
@@ -583,41 +615,96 @@ def generate_news_insights(sentiment_analysis):
     if sentiment_analysis['total_articles'] == 0:
         return "Son günlerde Koç Holding ile ilgili haber bulunamadı."
     
-    insights = []
+    # Gemini ile daha iyi haber analizi yanıtı oluştur
+    news_context = f"""
+Haber analizi verileri:
+- Toplam haber sayısı: {sentiment_analysis['total_articles']}
+- Olumlu haber: {sentiment_analysis['positive_count']}
+- Olumsuz haber: {sentiment_analysis['negative_count']}
+- Nötr haber: {sentiment_analysis['neutral_count']}
+- Genel sentiment: {sentiment_analysis['overall_sentiment']}
+- Sentiment skoru: {sentiment_analysis['sentiment_score']:.3f}
+
+Şirket bazında analiz:
+"""
     
-    # Genel sentiment durumu
-    if sentiment_analysis['overall_sentiment'] == 'positive':
-        insights.append("Haberler genel olarak olumlu - Bu fiyat artışına destek olabilir")
-    elif sentiment_analysis['overall_sentiment'] == 'negative':
-        insights.append("Haberler genel olarak olumsuz - Bu fiyat düşüşüne neden olabilir")
-    else:
-        insights.append("Haberler nötr - Teknik analiz daha belirleyici olacak")
-    
-    # Haber sayıları
-    insights.append(f"Toplam {sentiment_analysis['total_articles']} haber analiz edildi")
-    insights.append(f"Olumlu: {sentiment_analysis['positive_count']} | Olumsuz: {sentiment_analysis['negative_count']} | Nötr: {sentiment_analysis['neutral_count']}")
-    
-    # Şirket bazında analiz
     if 'company_breakdown' in sentiment_analysis and sentiment_analysis['company_breakdown']:
-        insights.append("\nŞirket Bazında Analiz:")
         for company, data in sentiment_analysis['company_breakdown'].items():
             if data['count'] > 0:
                 avg_score = data['total_score'] / data['count']
                 sentiment_text = "Olumlu" if avg_score > 0.1 else "Olumsuz" if avg_score < -0.1 else "Nötr"
-                insights.append(f"• {company}: {data['count']} haber ({data['positive']} olumlu, {data['negative']} olumsuz) - {sentiment_text}")
+                news_context += f"- {company}: {data['count']} haber ({data['positive']} olumlu, {data['negative']} olumsuz) - {sentiment_text}\n"
     
-    # Önemli haberler
     if sentiment_analysis['key_articles']:
-        insights.append("\nÖnemli Haberler:")
+        news_context += "\nÖnemli haberler:\n"
         for i, article in enumerate(sentiment_analysis['key_articles'][:3], 1):
             sentiment_text = "Olumlu" if article['sentiment'] == 'positive' else "Olumsuz" if article['sentiment'] == 'negative' else "Nötr"
             company_info = f" [{article.get('source_company', '')}]" if article.get('source_company') else ""
-            insights.append(f"{i}. {article['title'][:60]}...{company_info} ({sentiment_text})")
+            news_context += f"- {article['title'][:60]}...{company_info} ({sentiment_text})\n"
     
-    # Sentiment skoru
-    insights.append(f"\nSentiment Skoru: {sentiment_analysis['sentiment_score']:.3f}")
+    # Akıllı haber analizi yanıtı oluştur
+    def create_smart_news_response():
+        insights = []
+        
+        # Genel sentiment durumu
+        if sentiment_analysis['overall_sentiment'] == 'positive':
+            insights.append("Haberler genel olarak olumlu görünüyor. Bu durum hisse senedi fiyatına olumlu etki yapabilir.")
+        elif sentiment_analysis['overall_sentiment'] == 'negative':
+            insights.append("Haberler genel olarak olumsuz görünüyor. Bu durum hisse senedi fiyatına olumsuz etki yapabilir.")
+        else:
+            insights.append("Haberler nötr görünüyor. Bu durumda teknik analiz daha belirleyici olacaktır.")
+        
+        # Haber sayıları ve analiz
+        insights.append(f"Toplam {sentiment_analysis['total_articles']} haber analiz edildi. Olumlu: {sentiment_analysis['positive_count']}, Olumsuz: {sentiment_analysis['negative_count']}, Nötr: {sentiment_analysis['neutral_count']}")
+        
+        # Şirket bazında analiz
+        if 'company_breakdown' in sentiment_analysis and sentiment_analysis['company_breakdown']:
+            insights.append("\nŞirket bazında analiz:")
+            for company, data in sentiment_analysis['company_breakdown'].items():
+                if data['count'] > 0:
+                    avg_score = data['total_score'] / data['count']
+                    sentiment_text = "Olumlu" if avg_score > 0.1 else "Olumsuz" if avg_score < -0.1 else "Nötr"
+                    insights.append(f"• {company}: {data['count']} haber ({data['positive']} olumlu, {data['negative']} olumsuz) - {sentiment_text}")
+        
+        # Önemli haberler
+        if sentiment_analysis['key_articles']:
+            insights.append("\nÖnemli haberler:")
+            for i, article in enumerate(sentiment_analysis['key_articles'][:3], 1):
+                sentiment_text = "Olumlu" if article['sentiment'] == 'positive' else "Olumsuz" if article['sentiment'] == 'negative' else "Nötr"
+                company_info = f" [{article.get('source_company', '')}]" if article.get('source_company') else ""
+                insights.append(f"{i}. {article['title'][:60]}...{company_info} ({sentiment_text})")
+        
+        return "\n".join(insights)
     
-    return "\n".join(insights)
+    # Gemini ile yanıt oluşturmayı dene
+    if gemini_model:
+        try:
+            gemini_prompt = f"""
+Sen bir finans analisti olarak haber analizi yapıyorsun.
+
+Aşağıdaki haber analizi verilerini kullanarak net ve anlaşılır bir özet çıkar:
+
+{news_context}
+
+Yanıt kuralları:
+1. Sadece Türkçe yanıt ver
+2. Emoji kullanma
+3. Düzyazı şeklinde yaz
+4. Kısa ve öz ol (maksimum 2-3 paragraf)
+5. Teknik jargon kullanma
+6. Haberlerin fiyat üzerindeki potansiyel etkisini açıkla
+"""
+            response = gemini_model.generate_content(gemini_prompt)
+            response_text = response.text.strip()
+            if response_text and "Üzgünüm" not in response_text and "şu anda yanıt veremiyorum" not in response_text:
+                return response_text
+            else:
+                return create_smart_news_response()
+        except Exception as e:
+            print(f"Gemini haber analizi hatası: {e}")
+            return create_smart_news_response()
+    else:
+        return create_smart_news_response()
 
 @app.route('/')
 def home():
@@ -664,14 +751,142 @@ def chat():
                             'session_id': session_id
                         })
                     
-                    # Teknik analiz sonucunu formatla
-                    response = f"""
-KCHOL Teknik Analiz Raporu
+                    # Teknik analiz sonucunu Gemini ile yorumla ve yatırım stratejisi ekle
+                    def create_enhanced_technical_response():
+                        # Teknik analiz verilerini hazırla
+                        technical_data = result.get('analysis', '') + "\n\n" + result.get('summary', '')
+                        
+                        # Gemini ile yatırım stratejisi önerisi al
+                        if gemini_model:
+                            try:
+                                strategy_prompt = f"""
+Sen bir finansal analiz uzmanısın. Aşağıdaki teknik analiz sonuçlarını yorumlayarak KCHOL hisse senedi için yatırım stratejisi önerileri sun.
+
+Teknik Analiz Sonuçları:
+{technical_data}
+
+Bu teknik analiz sonuçlarına göre:
+1. Mevcut durumu değerlendir
+2. Kısa vadeli (1-4 hafta) yatırım stratejisi öner
+3. Orta vadeli (1-6 ay) yatırım stratejisi öner
+4. Risk seviyesini belirt
+5. Dikkat edilmesi gereken noktaları açıkla
+
+Yanıt kuralları:
+- Sadece Türkçe yanıt ver
+- Emoji kullanma
+- Düzyazı şeklinde yaz
+- Pratik ve uygulanabilir öneriler ver
+- Risk uyarısı ekle
+- Maksimum 4-5 paragraf yaz
+"""
+                                strategy_response = gemini_model.generate_content(strategy_prompt)
+                                strategy_text = strategy_response.text.strip()
+                                
+                                if strategy_text and "Üzgünüm" not in strategy_text:
+                                    enhanced_response = f"""KCHOL Teknik Analiz Raporu
 
 {result.get('analysis', '')}
 
 {result.get('summary', '')}
-                    """
+
+---
+
+YATIRIM STRATEJİSİ ÖNERİLERİ
+
+{strategy_text}"""
+                                else:
+                                    enhanced_response = f"""KCHOL Teknik Analiz Raporu
+
+{result.get('analysis', '')}
+
+{result.get('summary', '')}
+
+---
+
+YATIRIM STRATEJİSİ ÖNERİLERİ
+
+Teknik analiz sonuçlarına göre, KCHOL hisse senedi için aşağıdaki stratejileri öneriyorum:
+
+Kısa Vadeli Strateji (1-4 hafta):
+• Teknik indikatörlerin gösterdiği yöne göre pozisyon alın
+• Stop-loss seviyeleri belirleyin
+• Hacim artışlarını takip edin
+
+Orta Vadeli Strateji (1-6 ay):
+• Trend yönünde pozisyon alın
+• Düzenli alım stratejisi uygulayın
+• Portföy çeşitlendirmesi yapın
+
+Risk Yönetimi:
+• Pozisyon büyüklüğünü risk toleransınıza göre ayarlayın
+• Farklı zaman dilimlerinde analiz yapın
+• Piyasa koşullarını sürekli izleyin
+
+Not: Bu öneriler teknik analiz sonuçlarına dayalıdır. Yatırım kararı vermeden önce profesyonel danışmanlık almanızı öneririm."""
+                            except Exception as e:
+                                print(f"Gemini strateji hatası: {e}")
+                                enhanced_response = f"""KCHOL Teknik Analiz Raporu
+
+{result.get('analysis', '')}
+
+{result.get('summary', '')}
+
+---
+
+YATIRIM STRATEJİSİ ÖNERİLERİ
+
+Teknik analiz sonuçlarına göre, KCHOL hisse senedi için aşağıdaki stratejileri öneriyorum:
+
+Kısa Vadeli Strateji (1-4 hafta):
+• Teknik indikatörlerin gösterdiği yöne göre pozisyon alın
+• Stop-loss seviyeleri belirleyin
+• Hacim artışlarını takip edin
+
+Orta Vadeli Strateji (1-6 ay):
+• Trend yönünde pozisyon alın
+• Düzenli alım stratejisi uygulayın
+• Portföy çeşitlendirmesi yapın
+
+Risk Yönetimi:
+• Pozisyon büyüklüğünü risk toleransınıza göre ayarlayın
+• Farklı zaman dilimlerinde analiz yapın
+• Piyasa koşullarını sürekli izleyin
+
+Not: Bu öneriler teknik analiz sonuçlarına dayalıdır. Yatırım kararı vermeden önce profesyonel danışmanlık almanızı öneririm."""
+                        else:
+                            enhanced_response = f"""KCHOL Teknik Analiz Raporu
+
+{result.get('analysis', '')}
+
+{result.get('summary', '')}
+
+---
+
+YATIRIM STRATEJİSİ ÖNERİLERİ
+
+Teknik analiz sonuçlarına göre, KCHOL hisse senedi için aşağıdaki stratejileri öneriyorum:
+
+Kısa Vadeli Strateji (1-4 hafta):
+• Teknik indikatörlerin gösterdiği yöne göre pozisyon alın
+• Stop-loss seviyeleri belirleyin
+• Hacim artışlarını takip edin
+
+Orta Vadeli Strateji (1-6 ay):
+• Trend yönünde pozisyon alın
+• Düzenli alım stratejisi uygulayın
+• Portföy çeşitlendirmesi yapın
+
+Risk Yönetimi:
+• Pozisyon büyüklüğünü risk toleransınıza göre ayarlayın
+• Farklı zaman dilimlerinde analiz yapın
+• Piyasa koşullarını sürekli izleyin
+
+Not: Bu öneriler teknik analiz sonuçlarına dayalıdır. Yatırım kararı vermeden önce profesyonel danışmanlık almanızı öneririm."""
+                        
+                        return enhanced_response
+                    
+                    response = create_enhanced_technical_response()
                     
                     # Bot yanıtını oturuma ekle
                     add_message_to_session(session_id, 'bot', response, 'technical_analysis', result)
@@ -749,22 +964,77 @@ KCHOL Teknik Analiz Raporu
             
             trend_text = "Yükseliş bekleniyor!" if final_result['change'] > 0 else "Düşüş bekleniyor!" if final_result['change'] < 0 else "Fiyat sabit kalabilir"
             
-            response = f"""
-KCHOL Hisse Senedi Gelişmiş Fiyat Tahmini
+            # Akıllı fiyat tahmini yanıtı oluştur
+            def create_smart_prediction_response():
+                # Trend analizi
+                if final_result['change'] > 0:
+                    trend_analysis = f"Teknik analiz sonuçlarına göre, KCHOL hisse senedinin {final_result['predicted_price']} TL seviyesine {final_result['change']:+.2f} TL ({final_result['change_percent']:+.2f}%) yükselişle ulaşması bekleniyor."
+                    trend_summary = "Yükseliş trendi devam ediyor."
+                elif final_result['change'] < 0:
+                    trend_analysis = f"Teknik analiz sonuçlarına göre, KCHOL hisse senedinin {final_result['predicted_price']} TL seviyesine {final_result['change']:+.2f} TL ({final_result['change_percent']:+.2f}%) düşüşle ulaşması bekleniyor."
+                    trend_summary = "Düşüş trendi gözleniyor."
+                else:
+                    trend_analysis = f"Teknik analiz sonuçlarına göre, KCHOL hisse senedinin {final_result['predicted_price']} TL seviyesinde sabit kalması bekleniyor."
+                    trend_summary = "Fiyat stabil seyrediyor."
+                
+                # Haber etkisi analizi
+                if sentiment_analysis['overall_sentiment'] == 'positive':
+                    news_impact = "Haber analizi sonuçları olumlu etki gösteriyor. Bu durum teknik analiz tahminlerini destekliyor."
+                elif sentiment_analysis['overall_sentiment'] == 'negative':
+                    news_impact = "Haber analizi sonuçları olumsuz etki gösteriyor. Bu durum teknik analiz tahminlerini destekliyor."
+                else:
+                    news_impact = "Haber analizi sonuçları nötr etki gösteriyor. Bu durumda teknik analiz daha belirleyici olacaktır."
+                
+                # Risk seviyesi analizi
+                change_percent_abs = abs(final_result['change_percent'])
+                if change_percent_abs > 5:
+                    risk_level = "Yüksek volatilite bekleniyor. Risk yönetimi kritik önem taşıyor."
+                elif change_percent_abs > 2:
+                    risk_level = "Orta seviye volatilite bekleniyor. Dikkatli izleme önerilir."
+                else:
+                    risk_level = "Düşük volatilite bekleniyor. Stabil seyir devam edebilir."
+                
+                # Özet yanıt
+                response = f"""KCHOL Hisse Senedi Fiyat Tahmini
 
-Teknik Analiz:
-Mevcut Fiyat: {result['current_price']} TL
-Tahmin Edilen Fiyat: {final_result['predicted_price']} TL
-Değişim: {final_result['change']:+.2f} TL ({final_result['change_percent']:+.2f}%)
-Tahmin Tarihi: {result['prediction_date']}
+Mevcut durumda KCHOL hisse senedi {result['current_price']} TL seviyesinde işlem görüyor.
 
-{trend_text}
+{trend_analysis} {trend_summary}
 
-Haber Analizi:
-{sentiment_impact}
+{news_impact}
 
-{news_insights}
-            """
+{risk_level}
+
+Yatırım kararı vermeden önce risk yönetimi yapmanızı ve portföyünüzü çeşitlendirmenizi öneririm."""
+                
+                return response
+            
+            # Gemini ile yanıt oluşturmayı dene
+            if gemini_model:
+                try:
+                    prediction_context = f"""
+KCHOL hisse senedi fiyat tahmini verileri:
+- Mevcut fiyat: {result['current_price']} TL
+- Tahmin edilen fiyat: {final_result['predicted_price']} TL
+- Değişim: {final_result['change']:+.2f} TL ({final_result['change_percent']:+.2f}%)
+- Tahmin tarihi: {result['prediction_date']}
+- Trend: {trend_text}
+- Haber etkisi: {sentiment_impact}
+- Haber analizi: {news_insights}
+
+Bu verileri kullanarak kullanıcıya net, anlaşılır ve profesyonel bir fiyat tahmini yanıtı ver. 
+Emoji kullanma, düzyazı şeklinde yaz. ChatGPT tarzında net ve kısa cevaplar ver.
+"""
+                    gemini_response = get_gemini_response(original_message, prediction_context)
+                    if gemini_response:
+                        response = gemini_response
+                    else:
+                        response = create_smart_prediction_response()
+                except Exception as e:
+                    print(f"Gemini hatası: {e}")
+                    response = create_smart_prediction_response()
+            else:
+                response = create_smart_prediction_response()
             
             # Bot yanıtını oturuma ekle
             add_message_to_session(session_id, 'bot', response, 'prediction', final_result)
@@ -849,6 +1119,87 @@ Genel Durum: {sentiment_analysis['overall_sentiment'].upper()}
                     'type': 'error',
                     'session_id': session_id
                 })
+                
+        elif any(word in message for word in ['strateji', 'yatırım stratejisi', 'investment strategy', 'nasıl yatırım', 'portföy', 'portfolio', 'risk', 'risk yönetimi', 'yatırım', 'investment', 'alım', 'satım', 'trading', 'dca', 'dollar cost averaging', 'stop loss', 'temettü', 'dividend', 'uzun vadeli', 'kısa vadeli', 'swing trading', 'day trading', 'momentum', 'value investing', 'growth investing']):
+            # Yatırım stratejisi için özel yanıt
+            def create_investment_strategy_response():
+                # Mevcut fiyat bilgisini al
+                try:
+                    df = get_stock_data()
+                    current_price = df.iloc[-1]['close'] if df is not None else "Bilinmiyor"
+                except:
+                    current_price = "Bilinmiyor"
+                
+                # Strateji türüne göre yanıt oluştur
+                if any(word in message for word in ['uzun vadeli', 'long term', 'value investing']):
+                    strategy_type = "Uzun Vadeli Yatırım Stratejisi"
+                    strategy_details = """
+• KCHOL, Türkiye'nin en büyük holding şirketlerinden biri olarak uzun vadeli büyüme potansiyeli sunar
+• Otomotiv, dayanıklı tüketim ve enerji sektörlerinde güçlü pozisyon
+• Düzenli temettü ödemeleri ile gelir getirisi
+• 5-10 yıllık yatırım ufku önerilir
+• Düzenli alım stratejisi (DCA) uygulayın"""
+                elif any(word in message for word in ['kısa vadeli', 'short term', 'swing trading', 'day trading']):
+                    strategy_type = "Kısa Vadeli Trading Stratejisi"
+                    strategy_details = """
+• Teknik analiz odaklı yaklaşım
+• RSI, MACD, Bollinger Bands kullanın
+• Stop-loss seviyeleri mutlaka belirleyin
+• Risk/ödül oranı 1:2 veya daha iyi olmalı
+• Günlük/haftalık grafikleri takip edin"""
+                elif any(word in message for word in ['dca', 'dollar cost averaging', 'düzenli alım']):
+                    strategy_type = "Düzenli Alım Stratejisi (DCA)"
+                    strategy_details = """
+• Aylık düzenli alım yapın (örn: 1000 TL)
+• Fiyat düştüğünde daha fazla hisse alırsınız
+• Ortalama maliyeti düşürür
+• Piyasa volatilitesinden etkilenmez
+• Uzun vadede etkili bir strateji"""
+                else:
+                    strategy_type = "Genel Yatırım Stratejisi"
+                    strategy_details = """
+• Portföyünüzün maksimum %10-15'ini KCHOL'a ayırın
+• Risk toleransınıza göre pozisyon büyüklüğü belirleyin
+• Teknik ve temel analizi birlikte kullanın
+• Düzenli olarak portföyünüzü gözden geçirin
+• Stop-loss ve take-profit seviyeleri belirleyin"""
+                
+                response = f"""KCHOL Hisse Senedi {strategy_type}
+
+Mevcut Fiyat: {current_price} TL
+
+{strategy_details}
+
+Risk Yönetimi:
+• Portföy çeşitlendirmesi yapın
+• Farklı sektörlerde hisse senetleri bulundurun
+• Altın, döviz gibi alternatif yatırım araçları ekleyin
+• Risk toleransınıza uygun varlık dağılımı yapın
+
+Teknik Analiz Kullanımı:
+• RSI, MACD gibi teknik indikatörleri takip edin
+• 200 günlük hareketli ortalama seviyelerini izleyin
+• Hacim analizini göz önünde bulundurun
+• Destek ve direnç seviyelerini belirleyin
+
+Temel Analiz:
+• Çeyreklik finansal raporları takip edin
+• Sektörel trendleri analiz edin
+• Makroekonomik faktörleri değerlendirin
+• Şirket yönetimi ve stratejilerini izleyin
+
+Not: Bu öneriler genel bilgi amaçlıdır. Yatırım kararı vermeden önce profesyonel danışmanlık almanızı öneririm."""
+                
+                return response
+            
+            strategy_response = create_investment_strategy_response()
+            
+            add_message_to_session(session_id, 'bot', strategy_response, 'investment_strategy')
+            return jsonify({
+                'response': strategy_response,
+                'type': 'investment_strategy',
+                'session_id': session_id
+            })
             
         else:
             # Document RAG Agent ile profesyonel yanıtlar
