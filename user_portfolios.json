@@ -1,18 +1,27 @@
 {
   "default_user": [
     {
-      "symbol": "KCHOL.IS",
-      "quantity": 400.0,
-      "avg_price": 180.0,
-      "date_added": "2025-08-05",
-      "last_updated": "2025-08-05"
-    },
-    {
       "symbol": "THYAO.IS",
       "quantity": 50.0,
       "avg_price": 45.0,
       "date_added": "2025-08-05",
-      "last_updated": "2025-08-05"
+      "last_updated": "2025-08-05",
+      "current_price": 314.25,
+      "current_value": 15712.5
+    },
+    {
+      "symbol": "KCHOL",
+      "quantity": 56.0,
+      "avg_price": 34.0,
+      "date_added": "2025-08-10",
+      "last_updated": "2025-08-10"
+    },
+    {
+      "symbol": "55",
+      "quantity": 455555.0,
+      "avg_price": 34.0,
+      "date_added": "2025-08-10",
+      "last_updated": "2025-08-10"
     }
   ]
 }

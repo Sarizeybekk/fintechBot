@@ -1820,3 +1820,367 @@ document.addEventListener('DOMContentLoaded', function() {
         messageInput.focus();
     }
 }); 
+
+// Portfolio Management Functions
+function openPortfolioModal() {
+    const portfolioModal = document.getElementById('portfolioModal');
+    portfolioModal.classList.add('show');
+    loadPortfolioData();
+}
+
+function closePortfolioModal() {
+    const portfolioModal = document.getElementById('portfolioModal');
+    portfolioModal.classList.remove('show');
+}
+
+async function loadPortfolioData() {
+    try {
+        const response = await fetch('/api/portfolio?user_id=default_user');
+        const data = await response.json();
+        
+        if (data.success) {
+            updatePortfolioSummary(data.data);
+            updatePortfolioTable(data.data);
+            createPortfolioChart(data.data);
+        } else {
+            showToast('Portföy yüklenirken hata oluştu', 'error');
+        }
+    } catch (error) {
+        console.error('Portföy yükleme hatası:', error);
+        showToast('Portföy yüklenirken hata oluştu', 'error');
+    }
+}
+
+function updatePortfolioSummary(data) {
+    const portfolioValue = data.portfolio_value;
+    
+    document.getElementById('totalInvested').textContent = `${portfolioValue.total_invested.toLocaleString('tr-TR')} TL`;
+    document.getElementById('currentValue').textContent = `${portfolioValue.current_value.toLocaleString('tr-TR')} TL`;
+    
+    const pnlElement = document.getElementById('totalPnl');
+    const pnlPercentElement = document.getElementById('totalPnlPercent');
+    
+    pnlElement.textContent = `${portfolioValue.total_pnl.toLocaleString('tr-TR')} TL`;
+    pnlPercentElement.textContent = `%${portfolioValue.total_pnl_percent.toFixed(2)}`;
+    
+    // Kar/zarar rengini ayarla
+    if (portfolioValue.total_pnl > 0) {
+        pnlElement.style.color = 'var(--success-color)';
+        pnlPercentElement.style.color = 'var(--success-color)';
+    } else if (portfolioValue.total_pnl < 0) {
+        pnlElement.style.color = 'var(--error-color)';
+        pnlPercentElement.style.color = 'var(--error-color)';
+    } else {
+        pnlElement.style.color = 'var(--text-primary)';
+        pnlPercentElement.style.color = 'var(--text-primary)';
+    }
+}
+
+function updatePortfolioTable(data) {
+    const portfolioTable = document.getElementById('portfolioTable');
+    const portfolioValue = data.portfolio_value;
+    
+    if (portfolioValue.stocks.length === 0) {
+        portfolioTable.innerHTML = `
+            <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+                <i class="fas fa-briefcase" style="font-size: 48px; margin-bottom: 16px;"></i>
+                <p>Portföyünüzde henüz hisse senedi bulunmuyor</p>
+                <p>Yeni hisse eklemek için "Hisse Ekle" butonuna tıklayın</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let tableHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th>Hisse</th>
+                    <th>Miktar</th>
+                    <th>Ort. Alış</th>
+                    <th>Güncel</th>
+                    <th>Yatırım</th>
+                    <th>Değer</th>
+                    <th>Kar/Zarar</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    portfolioValue.stocks.forEach(stock => {
+        const pnlClass = stock.pnl >= 0 ? 'positive' : 'negative';
+        const pnlSign = stock.pnl >= 0 ? '+' : '';
+        
+        tableHTML += `
+            <tr>
+                <td class="stock-symbol">${stock.symbol}</td>
+                <td>${stock.quantity.toLocaleString('tr-TR')}</td>
+                <td>${stock.avg_price.toFixed(2)} TL</td>
+                <td>${stock.current_price.toFixed(2)} TL</td>
+                <td>${stock.invested.toLocaleString('tr-TR')} TL</td>
+                <td>${stock.current_value.toLocaleString('tr-TR')} TL</td>
+                <td class="stock-pnl ${pnlClass}">
+                    ${pnlSign}${stock.pnl.toFixed(2)} TL
+                    <br>
+                    <small>(${pnlSign}%${stock.pnl_percent.toFixed(2)})</small>
+                </td>
+                <td class="stock-actions">
+                    <button class="stock-action-btn" onclick="editStock('${stock.symbol}')" title="Düzenle">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="stock-action-btn danger" onclick="removeStock('${stock.symbol}')" title="Çıkar">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tableHTML += `
+            </tbody>
+        </table>
+    `;
+    
+    portfolioTable.innerHTML = tableHTML;
+}
+
+function createPortfolioChart(data) {
+    const portfolioValue = data.portfolio_value;
+    
+    if (!portfolioValue || !portfolioValue.stocks || portfolioValue.stocks.length === 0) {
+        document.getElementById('portfolioChart').innerHTML = `
+            <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+                <i class="fas fa-chart-pie" style="font-size: 48px; margin-bottom: 16px;"></i>
+                <p>Portföy grafiği için hisse senedi gerekli</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Grafik verilerini hazırla
+    const stocks = portfolioValue.stocks;
+    const chartData = [{
+        values: stocks.map(stock => stock.current_value),
+        labels: stocks.map(stock => stock.symbol),
+        type: 'pie',
+        textinfo: 'label+percent+value',
+        textposition: 'outside',
+        hovertemplate: '<b>%{label}</b><br>' +
+                      'Değer: %{value:,.2f} TL<br>' +
+                      'Yüzde: %{percent}<extra></extra>',
+        marker: {
+            colors: getChartColors(stocks.length),
+            line: {
+                color: '#ecf0f1',
+                width: 2
+            }
+        },
+        textfont: {
+            size: 14,
+            color: '#2c3e50'
+        }
+    }];
+    
+    const layout = {
+        title: {
+            text: 'Portföy Dağılımı',
+            font: {
+                size: 20,
+                color: '#2c3e50',
+                family: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif'
+            }
+        },
+        font: {
+            family: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+            size: 13,
+            color: '#34495e'
+        },
+        margin: {
+            t: 80,
+            b: 50,
+            l: 50,
+            r: 50
+        },
+        showlegend: true,
+        legend: {
+            orientation: 'v',
+            x: 1.05,
+            y: 0.5,
+            font: {
+                size: 13,
+                color: '#34495e'
+            },
+            bgcolor: 'rgba(255,255,255,0.95)',
+            bordercolor: '#bdc3c7',
+            borderwidth: 1,
+            bordercornerradius: 8
+        },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        hovermode: 'closest'
+    };
+    
+    const config = {
+        responsive: true,
+        displayModeBar: false,
+        modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
+    };
+    
+    Plotly.newPlot('portfolioChart', chartData, layout, config);
+}
+
+function getChartColors(count) {
+    const colors = [
+        '#3498db', // Mavi (ana tema rengi)
+        '#e74c3c', // Kırmızı
+        '#2ecc71', // Yeşil
+        '#f39c12', // Turuncu
+        '#9b59b6', // Mor
+        '#1abc9c', // Turkuaz
+        '#e67e22', // Koyu turuncu
+        '#34495e', // Koyu gri-mavi
+        '#16a085', // Koyu turkuaz
+        '#8e44ad', // Koyu mor
+        '#27ae60', // Koyu yeşil
+        '#d35400', // Çok koyu turuncu
+        '#2980b9', // Koyu mavi
+        '#c0392b', // Koyu kırmızı
+        '#7f8c8d', // Gri
+        '#f1c40f', // Sarı
+        '#e91e63', // Pembe
+        '#00bcd4', // Açık mavi
+        '#4caf50', // Material yeşil
+        '#ff9800'  // Material turuncu
+    ];
+    
+    return colors.slice(0, count);
+}
+
+function showAddStockForm() {
+    document.getElementById('addStockForm').style.display = 'block';
+    document.getElementById('stockSymbol').focus();
+}
+
+function hideAddStockForm() {
+    document.getElementById('addStockForm').style.display = 'none';
+    document.getElementById('stockSymbol').value = '';
+    document.getElementById('stockQuantity').value = '';
+    document.getElementById('stockPrice').value = '';
+}
+
+async function addStockToPortfolio() {
+    const symbol = document.getElementById('stockSymbol').value.trim().toUpperCase();
+    const quantity = parseFloat(document.getElementById('stockQuantity').value);
+    const price = parseFloat(document.getElementById('stockPrice').value);
+    
+    if (!symbol || !quantity || !price) {
+        showToast('Lütfen tüm alanları doldurun', 'error');
+        return;
+    }
+    
+    if (quantity <= 0 || price <= 0) {
+        showToast('Miktar ve fiyat pozitif olmalı', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/portfolio/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_id: 'default_user',
+                symbol: symbol,
+                quantity: quantity,
+                avg_price: price
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(data.message, 'success');
+            hideAddStockForm();
+            loadPortfolioData(); // Portföyü yenile
+        } else {
+            showToast(data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Hisse ekleme hatası:', error);
+        showToast('Hisse eklenirken hata oluştu', 'error');
+    }
+}
+
+async function removeStock(symbol) {
+    if (!confirm(`${symbol} hissesini portföyden çıkarmak istediğinizden emin misiniz?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/portfolio/remove', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_id: 'default_user',
+                symbol: symbol
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(data.message, 'success');
+            loadPortfolioData(); // Portföyü yenile
+        } else {
+            showToast(data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Hisse çıkarma hatası:', error);
+        showToast('Hisse çıkarılırken hata oluştu', 'error');
+    }
+}
+
+function editStock(symbol) {
+    // Basit düzenleme - yeni miktar ve fiyat gir
+    const newQuantity = prompt(`${symbol} için yeni miktar:`, '');
+    const newPrice = prompt(`${symbol} için yeni ortalama fiyat:`, '');
+    
+    if (newQuantity && newPrice) {
+        const quantity = parseFloat(newQuantity);
+        const price = parseFloat(newPrice);
+        
+        if (quantity > 0 && price > 0) {
+            // Önce mevcut hisseyi çıkar, sonra yenisini ekle
+            removeStock(symbol).then(() => {
+                setTimeout(() => {
+                    // Form alanlarını doldur ve ekle
+                    document.getElementById('stockSymbol').value = symbol;
+                    document.getElementById('stockQuantity').value = quantity;
+                    document.getElementById('stockPrice').value = price;
+                    addStockToPortfolio();
+                }, 500);
+            });
+        } else {
+            showToast('Geçersiz değerler', 'error');
+        }
+    }
+}
+
+// Portföy yenileme fonksiyonu
+function refreshPortfolio() {
+    if (document.getElementById('portfolioModal').classList.contains('show')) {
+        loadPortfolioData();
+    }
+}
+
+// Sayfa yüklendiğinde portföy butonunu aktif et
+document.addEventListener('DOMContentLoaded', function() {
+    // Mevcut event listener'lar...
+    
+    // Portföy yenileme için otomatik yenileme (5 dakikada bir)
+    setInterval(refreshPortfolio, 5 * 60 * 1000);
+}); 

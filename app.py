@@ -84,6 +84,15 @@ except Exception as e:
     print(f"❌ Hisse Simülasyon modülü yüklenemedi: {e}")
     hisse_simulasyon = None
 
+# Initialize Portfolio Manager
+try:
+    from portfolio_manager import PortfolioManager
+    portfolio_manager = PortfolioManager()
+    print("✅ Portfolio Manager başarıyla yüklendi")
+except Exception as e:
+    print(f"❌ Portfolio Manager yüklenemedi: {e}")
+    portfolio_manager = None
+
 # Sohbet geçmişi yönetimi
 def create_new_session():
     """Yeni sohbet oturumu oluştur"""
@@ -1764,6 +1773,127 @@ def get_technical_analysis():
         return jsonify({
             'success': False,
             'message': f'Teknik analiz hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/portfolio', methods=['GET'])
+def get_portfolio():
+    """Kullanıcının portföyünü getir"""
+    try:
+        user_id = request.args.get('user_id', 'default_user')
+        
+        if not portfolio_manager:
+            return jsonify({
+                'success': False,
+                'message': 'Portföy yöneticisi kullanılamıyor'
+            }), 500
+        
+        portfolio_summary = portfolio_manager.get_portfolio_summary(user_id)
+        
+        return jsonify({
+            'success': True,
+            'data': portfolio_summary
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Portföy getirme hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/portfolio/add', methods=['POST'])
+def add_stock_to_portfolio():
+    """Portföye yeni hisse senedi ekle"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id', 'default_user')
+        symbol = data.get('symbol', '').upper()
+        quantity = float(data.get('quantity', 0))
+        avg_price = float(data.get('avg_price', 0))
+        
+        if not symbol or quantity <= 0 or avg_price <= 0:
+            return jsonify({
+                'success': False,
+                'message': 'Geçersiz veri: symbol, quantity ve avg_price pozitif olmalı'
+            }), 400
+        
+        if not portfolio_manager:
+            return jsonify({
+                'success': False,
+                'message': 'Portföy yöneticisi kullanılamıyor'
+            }), 500
+        
+        result = portfolio_manager.add_stock(user_id, symbol, quantity, avg_price)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Hisse ekleme hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/portfolio/remove', methods=['POST'])
+def remove_stock_from_portfolio():
+    """Portföyden hisse senedi çıkar"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id', 'default_user')
+        symbol = data.get('symbol', '').upper()
+        quantity = data.get('quantity')  # None ise tüm hisseyi çıkar
+        
+        if not symbol:
+            return jsonify({
+                'success': False,
+                'message': 'Geçersiz symbol'
+            }), 400
+        
+        if not portfolio_manager:
+            return jsonify({
+                'success': False,
+                'message': 'Portföy yöneticisi kullanılamıyor'
+            }), 500
+        
+        if quantity is not None:
+            quantity = float(quantity)
+            if quantity <= 0:
+                return jsonify({
+                    'success': False,
+                    'message': 'Quantity pozitif olmalı'
+                }), 400
+        
+        result = portfolio_manager.remove_stock(user_id, symbol, quantity)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Hisse çıkarma hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/portfolio/calculate', methods=['GET'])
+def calculate_portfolio_value():
+    """Portföy değerini hesapla"""
+    try:
+        user_id = request.args.get('user_id', 'default_user')
+        
+        if not portfolio_manager:
+            return jsonify({
+                'success': False,
+                'message': 'Portföy yöneticisi kullanılamıyor'
+            }), 500
+        
+        portfolio_value = portfolio_manager.calculate_portfolio_value(user_id)
+        
+        return jsonify({
+            'success': True,
+            'data': portfolio_value
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Portföy hesaplama hatası: {str(e)}'
         }), 500
 
 if __name__ == '__main__':
