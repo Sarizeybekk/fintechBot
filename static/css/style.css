@@ -2348,25 +2348,410 @@ input:checked + .toggle-slider:before {
 @media (max-width: 768px) {
     .settings-modal-content {
         width: 95%;
-        max-height: 90vh;
+        margin: 20px auto;
     }
     
     .settings-content {
-        padding: 16px;
-        max-height: 75vh;
+        max-height: 60vh;
     }
     
     .setting-item {
         flex-direction: column;
         align-items: flex-start;
-        gap: 12px;
+        gap: 10px;
     }
     
     .setting-info {
-        margin-right: 0;
+        text-align: center;
     }
     
     .setting-btn, .setting-select {
-        align-self: flex-end;
+        width: 100%;
     }
+} 
+
+/* Simulation Modal Styles */
+.simulation-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.simulation-modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.simulation-modal-content {
+    background: var(--bg-secondary);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px var(--shadow-color);
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow: hidden;
+    transform: scale(0.9);
+    transition: all 0.3s ease;
+}
+
+.simulation-modal.show .simulation-modal-content {
+    transform: scale(1);
+}
+
+.simulation-modal-header {
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--gradient-secondary);
+    color: white;
+}
+
+.simulation-modal-header h3 {
+    font-size: 20px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.simulation-modal-header h3 i {
+    font-size: 24px;
+}
+
+.simulation-content {
+    padding: 32px;
+    max-height: calc(90vh - 120px);
+    overflow-y: auto;
+}
+
+.simulation-form {
+    margin-bottom: 32px;
+}
+
+.form-group {
+    margin-bottom: 24px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.form-group label i {
+    color: var(--accent-color);
+    font-size: 16px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 14px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
+}
+
+.form-group small {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.simulation-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 140px;
+    justify-content: center;
+}
+
+.simulation-btn.primary {
+    background: var(--accent-color);
+    color: white;
+}
+
+.simulation-btn.primary:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(6, 182, 212, 0.3);
+}
+
+.simulation-btn.secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 2px solid var(--border-color);
+}
+
+.simulation-btn.secondary:hover {
+    background: var(--border-color);
+    transform: translateY(-2px);
+}
+
+.simulation-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.simulation-examples {
+    margin-bottom: 32px;
+}
+
+.simulation-examples h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.simulation-examples h4 i {
+    color: var(--warning-color);
+    font-size: 18px;
+}
+
+.example-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.example-btn {
+    padding: 12px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-align: left;
+}
+
+.example-btn:hover {
+    border-color: var(--accent-color);
+    background: var(--bg-tertiary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px var(--shadow-color);
+}
+
+.example-btn i {
+    color: var(--accent-color);
+    font-size: 14px;
+    min-width: 16px;
+}
+
+.simulation-result {
+    background: var(--bg-tertiary);
+    border-radius: 12px;
+    padding: 24px;
+    border-left: 4px solid var(--accent-color);
+}
+
+.simulation-result h4 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.simulation-result h4 i {
+    color: var(--success-color);
+    font-size: 20px;
+}
+
+.result-content {
+    margin-bottom: 24px;
+}
+
+.result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.result-item:last-child {
+    border-bottom: none;
+}
+
+.result-label {
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.result-value {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.result-value.profit {
+    color: var(--success-color);
+}
+
+.result-value.loss {
+    color: var(--error-color);
+}
+
+.result-value.neutral {
+    color: var(--warning-color);
+}
+
+.result-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.result-btn {
+    padding: 10px 20px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.result-btn:hover {
+    border-color: var(--accent-color);
+    background: var(--accent-color);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.result-btn i {
+    font-size: 12px;
+}
+
+/* Responsive Design for Simulation Modal */
+@media (max-width: 768px) {
+    .simulation-modal-content {
+        width: 95%;
+        margin: 20px auto;
+    }
+    
+    .simulation-content {
+        padding: 20px;
+        max-height: calc(90vh - 100px);
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .simulation-btn {
+        width: 100%;
+    }
+    
+    .example-buttons {
+        grid-template-columns: 1fr;
+    }
+    
+    .result-actions {
+        flex-direction: column;
+    }
+    
+    .result-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Loading state for simulation */
+.simulation-loading {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.simulation-loading i {
+    font-size: 32px;
+    color: var(--accent-color);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.simulation-loading p {
+    margin-top: 16px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* Error state for simulation */
+.simulation-error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--error-color);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 16px;
+    color: var(--error-color);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.simulation-error i {
+    font-size: 16px;
 } 

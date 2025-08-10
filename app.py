@@ -58,6 +58,32 @@ except Exception as e:
     print(f"Technical Analysis Engine yuklenemedi: {e}")
     technical_analysis_engine = None
 
+# Initialize Financial Q&A Agent
+try:
+    from financial_qa_agent import FinancialQAAgent
+    financial_qa_agent = FinancialQAAgent()
+    print("Financial Q&A Agent basariyla yuklendi")
+except Exception as e:
+    print(f"Financial Q&A Agent yuklenemedi: {e}")
+    financial_qa_agent = None
+
+# Initialize Investment Advisor
+try:
+    from investment_advisor import InvestmentAdvisor
+    investment_advisor = InvestmentAdvisor()
+    print("✅ Investment Advisor başarıyla yüklendi")
+except Exception as e:
+    print(f"❌ Investment Advisor yüklenemedi: {e}")
+    investment_advisor = None
+
+# Hisse simülasyon modülünü import et
+try:
+    from hisse_simulasyon import hisse_simulasyon
+    print("✅ Hisse Simülasyon modülü başarıyla yüklendi")
+except Exception as e:
+    print(f"❌ Hisse Simülasyon modülü yüklenemedi: {e}")
+    hisse_simulasyon = None
+
 # Sohbet geçmişi yönetimi
 def create_new_session():
     """Yeni sohbet oturumu oluştur"""
@@ -736,7 +762,29 @@ def chat():
             })
         
         # Kullanıcı mesajlarını analiz et
-        if any(word in message for word in ['teknik analiz', 'teknik', 'grafik', 'indikatör', 'rsi', 'macd', 'sma']):
+        # Önce eğitim sorularını kontrol et
+        if any(word in message for word in ['nedir', 'ne demek', 'açıkla', 'anlat', 'eğitim', 'öğren', 'rehber']):
+            # Finansal eğitim soruları
+            if financial_qa_agent:
+                try:
+                    print(f"Finansal Eğitim Agent'a gönderilen soru: {original_message}")
+                    qa_result = financial_qa_agent.process_financial_question(original_message)
+                    
+                    if qa_result.get('success') and qa_result.get('question_type') == 'financial_education':
+                        response = qa_result.get('response', 'Yanıt oluşturulamadı.')
+                        
+                        add_message_to_session(session_id, 'bot', response, 'financial_education', qa_result)
+                        return jsonify({
+                            'response': response,
+                            'type': 'financial_education',
+                            'data': qa_result,
+                            'session_id': session_id
+                        })
+                except Exception as e:
+                    print(f"Finansal eğitim hatası: {e}")
+        
+        # Teknik analiz soruları - sadece belirli hisse için
+        if any(word in message for word in ['teknik analiz', 'teknik', 'grafik', 'indikatör', 'rsi', 'macd', 'bollinger', 'sma', 'hacim', 'fiyat']) and not any(word in message for word in ['nedir', 'ne demek', 'açıkla', 'anlat']) and (any(word in message.lower() for word in ['kchol', 'koç', 'thyao', 'garan', 'akbnk', 'asels', 'sasa', 'eregl', 'isctr', 'bimas', 'alark', 'tuprs', 'pgsus', 'krdmd', 'tavhl', 'doas', 'toaso', 'froto', 'vestl', 'yapi', 'qnbfb', 'halkb', 'vakbn', 'sise', 'kervn']) or any(word in message.lower() for word in ['teknik analiz yap', 'rsi analizi', 'macd analizi', 'bollinger analizi', 'sma analizi', 'hacim analizi', 'fiyat analizi'])):
             # Teknik analiz yap
             if technical_analysis_engine:
                 try:
@@ -753,6 +801,17 @@ def chat():
                     
                     # Teknik analiz sonucunu Gemini ile yorumla ve yatırım stratejisi ekle
                     def create_enhanced_technical_response():
+                        # Grafikleri al
+                        charts = result.get('charts', [])
+                        charts_html = ""
+                        
+                        if charts:
+                            charts_html = "\n\n📊 **TEKNİK ANALİZ GRAFİKLERİ**\n\n"
+                            for i, chart in enumerate(charts, 1):
+                                charts_html += f"**{i}. {chart.get('title', 'Grafik')}**\n"
+                                charts_html += f"{chart.get('data', '')}\n\n"
+                                charts_html += "---\n\n"
+                        
                         # Teknik analiz verilerini hazırla
                         technical_data = result.get('analysis', '') + "\n\n" + result.get('summary', '')
                         
@@ -790,6 +849,8 @@ Yanıt kuralları:
 
 {result.get('summary', '')}
 
+{charts_html}
+
 ---
 
 YATIRIM STRATEJİSİ ÖNERİLERİ
@@ -801,6 +862,8 @@ YATIRIM STRATEJİSİ ÖNERİLERİ
 {result.get('analysis', '')}
 
 {result.get('summary', '')}
+
+{charts_html}
 
 ---
 
@@ -832,6 +895,8 @@ Not: Bu öneriler teknik analiz sonuçlarına dayalıdır. Yatırım kararı ver
 
 {result.get('summary', '')}
 
+{charts_html}
+
 ---
 
 YATIRIM STRATEJİSİ ÖNERİLERİ
@@ -860,6 +925,8 @@ Not: Bu öneriler teknik analiz sonuçlarına dayalıdır. Yatırım kararı ver
 {result.get('analysis', '')}
 
 {result.get('summary', '')}
+
+{charts_html}
 
 ---
 
@@ -915,7 +982,7 @@ Not: Bu öneriler teknik analiz sonuçlarına dayalıdır. Yatırım kararı ver
                     'session_id': session_id
                 })
                 
-        elif any(word in message for word in ['tahmin', 'fiyat', 'ne olacak', 'yükselir mi', 'düşer mi']):
+        elif any(word in message for word in ['tahmin', 'fiyat', 'ne olacak', 'yükselir mi', 'düşer mi', 'niye düştü', 'neden düştü', 'bugün niye', 'bugün neden']):
             # Hisse verisi al
             df = get_stock_data()
             if df is None:
@@ -938,112 +1005,128 @@ Not: Bu öneriler teknik analiz sonuçlarına dayalıdır. Yatırım kararı ver
                     'session_id': session_id
                 })
             
-            # Haber analizi yap
-            print("Haber analizi başlatılıyor...")
-            news_articles = get_news_articles("Koç Holding", days=7)
-            sentiment_analysis = analyze_news_sentiment(news_articles)
-            
-            # Haber tabanlı tahmin düzeltmesi
-            news_prediction = get_news_based_prediction(sentiment_analysis, result)
-            
-            # Hafta sonu kontrolü mesajı
-            prediction_date = datetime.strptime(result['prediction_date'], '%Y-%m-%d')
-            if prediction_date.weekday() >= 5:  # Cumartesi (5) veya Pazar (6)
-                print(f"Hafta sonu tespit edildi. Tahmin tarihi: {result['prediction_date']} (Pazartesi)")
-            
-            # Haber içgörülerini oluştur
-            news_insights = generate_news_insights(sentiment_analysis)
-            
-            # Tahmin sonucunu formatla
-            if news_prediction:
-                final_result = news_prediction['adjusted_prediction']
-                sentiment_impact = "Haberler olumlu etki yaratıyor" if sentiment_analysis['overall_sentiment'] == 'positive' else "Haberler olumsuz etki yaratıyor" if sentiment_analysis['overall_sentiment'] == 'negative' else "Haberler nötr etki"
-            else:
-                final_result = result
-                sentiment_impact = "Haber analizi yapılamadı"
-            
-            trend_text = "Yükseliş bekleniyor!" if final_result['change'] > 0 else "Düşüş bekleniyor!" if final_result['change'] < 0 else "Fiyat sabit kalabilir"
-            
-            # Akıllı fiyat tahmini yanıtı oluştur
-            def create_smart_prediction_response():
-                # Trend analizi
-                if final_result['change'] > 0:
-                    trend_analysis = f"Teknik analiz sonuçlarına göre, KCHOL hisse senedinin {final_result['predicted_price']} TL seviyesine {final_result['change']:+.2f} TL ({final_result['change_percent']:+.2f}%) yükselişle ulaşması bekleniyor."
-                    trend_summary = "Yükseliş trendi devam ediyor."
-                elif final_result['change'] < 0:
-                    trend_analysis = f"Teknik analiz sonuçlarına göre, KCHOL hisse senedinin {final_result['predicted_price']} TL seviyesine {final_result['change']:+.2f} TL ({final_result['change_percent']:+.2f}%) düşüşle ulaşması bekleniyor."
-                    trend_summary = "Düşüş trendi gözleniyor."
-                else:
-                    trend_analysis = f"Teknik analiz sonuçlarına göre, KCHOL hisse senedinin {final_result['predicted_price']} TL seviyesinde sabit kalması bekleniyor."
-                    trend_summary = "Fiyat stabil seyrediyor."
+            # Web Search Agent ile güncel haber analizi yap
+            print("Web Search Agent ile güncel haber analizi başlatılıyor...")
+            try:
+                from web_search_agent import WebSearchAgent
+                web_agent = WebSearchAgent()
                 
-                # Haber etkisi analizi
-                if sentiment_analysis['overall_sentiment'] == 'positive':
-                    news_impact = "Haber analizi sonuçları olumlu etki gösteriyor. Bu durum teknik analiz tahminlerini destekliyor."
-                elif sentiment_analysis['overall_sentiment'] == 'negative':
-                    news_impact = "Haber analizi sonuçları olumsuz etki gösteriyor. Bu durum teknik analiz tahminlerini destekliyor."
-                else:
-                    news_impact = "Haber analizi sonuçları nötr etki gösteriyor. Bu durumda teknik analiz daha belirleyici olacaktır."
+                # Kullanıcı sorusuna göre arama sorgusu oluştur
+                search_query = "KCHOL hisse senedi güncel haberler ve analiz"
                 
-                # Risk seviyesi analizi
-                change_percent_abs = abs(final_result['change_percent'])
-                if change_percent_abs > 5:
-                    risk_level = "Yüksek volatilite bekleniyor. Risk yönetimi kritik önem taşıyor."
-                elif change_percent_abs > 2:
-                    risk_level = "Orta seviye volatilite bekleniyor. Dikkatli izleme önerilir."
-                else:
-                    risk_level = "Düşük volatilite bekleniyor. Stabil seyir devam edebilir."
+                # Özel durumlar için sorgu optimizasyonu
+                if any(word in original_message.lower() for word in ['niye düştü', 'neden düştü', 'bugün niye düştü', 'bugün neden düştü']):
+                    search_query = "KCHOL hisse senedi bugün düşüş nedenleri ve güncel haberler"
+                elif any(word in original_message.lower() for word in ['niye yükseldi', 'neden yükseldi', 'bugün niye yükseldi', 'bugün neden yükseldi']):
+                    search_query = "KCHOL hisse senedi bugün yükseliş nedenleri ve güncel haberler"
+                elif any(word in original_message.lower() for word in ['yükselir', 'artar', 'çıkar']):
+                    search_query = "KCHOL hisse senedi yükseliş haberleri ve analiz"
+                elif any(word in original_message.lower() for word in ['düşer', 'iner', 'aşağı']):
+                    search_query = "KCHOL hisse senedi düşüş haberleri ve analiz"
                 
-                # Özet yanıt
+                # Web arama ve analiz yap
+                web_analysis_result = web_agent.analyze_price_prediction_with_news(original_message, result, search_query)
+                
+                if web_analysis_result.get('success'):
+                    # Web analizi başarılı
+                    web_analysis = web_analysis_result.get('analysis', '')
+                    web_results = web_analysis_result.get('web_results', [])
+                    has_conflict = web_analysis_result.get('has_conflict', False)
+                    source_urls = web_analysis_result.get('source_urls', [])
+                    
+                    # Web analizi ile zenginleştirilmiş yanıt
+                    if web_analysis:
+                        response = web_analysis
+                        
+                        # Eğer kaynak URL'ler varsa ve analizde yoksa ekle
+                        if source_urls and "KAYNAK HABERLER" not in response:
+                            response += "\n\nKAYNAK HABERLER:\n"
+                            for url_info in source_urls[:5]:  # En iyi 5 kaynak
+                                response += f"{url_info}\n\n"
+                    else:
+                        # Fallback: Eski haber analizi
+                        news_articles = get_news_articles("Koç Holding", days=7)
+                        sentiment_analysis = analyze_news_sentiment(news_articles)
+                        news_insights = generate_news_insights(sentiment_analysis)
+                        
+                        # Basit yanıt oluştur
+                        trend_text = "Yükseliş bekleniyor!" if result['change'] > 0 else "Düşüş bekleniyor!" if result['change'] < 0 else "Fiyat sabit kalabilir"
+                        response = f"""KCHOL Hisse Senedi Fiyat Tahmini
+
+Mevcut durumda KCHOL hisse senedi {result['current_price']} TL seviyesinde işlem görüyor.
+
+Teknik analiz sonuçlarına göre, KCHOL hisse senedinin {result['predicted_price']} TL seviyesine {result['change']:+.2f} TL ({result['change_percent']:+.2f}%) değişimle ulaşması bekleniyor. {trend_text}
+
+{news_insights}
+
+Yatırım kararı vermeden önce risk yönetimi yapmanızı ve portföyünüzü çeşitlendirmenizi öneririm."""
+                else:
+                    # Web analizi başarısız, eski yöntemi kullan
+                    print("Web analizi başarısız, eski haber analizi kullanılıyor...")
+                    news_articles = get_news_articles("Koç Holding", days=7)
+                    sentiment_analysis = analyze_news_sentiment(news_articles)
+                    news_prediction = get_news_based_prediction(sentiment_analysis, result)
+                    news_insights = generate_news_insights(sentiment_analysis)
+                    
+                    # Tahmin sonucunu formatla
+                    if news_prediction:
+                        final_result = news_prediction['adjusted_prediction']
+                        sentiment_impact = "Haberler olumlu etki yaratıyor" if sentiment_analysis['overall_sentiment'] == 'positive' else "Haberler olumsuz etki yaratıyor" if sentiment_analysis['overall_sentiment'] == 'negative' else "Haberler nötr etki"
+                    else:
+                        final_result = result
+                        sentiment_impact = "Haber analizi yapılamadı"
+                    
+                    trend_text = "Yükseliş bekleniyor!" if final_result['change'] > 0 else "Düşüş bekleniyor!" if final_result['change'] < 0 else "Fiyat sabit kalabilir"
+                    
+                    response = f"""KCHOL Hisse Senedi Fiyat Tahmini
+
+Mevcut durumda KCHOL hisse senedi {result['current_price']} TL seviyesinde işlem görüyor.
+
+Teknik analiz sonuçlarına göre, KCHOL hisse senedinin {final_result['predicted_price']} TL seviyesine {final_result['change']:+.2f} TL ({final_result['change_percent']:+.2f}%) değişimle ulaşması bekleniyor. {trend_text}
+
+{news_insights}
+
+{sentiment_impact}
+
+Yatırım kararı vermeden önce risk yönetimi yapmanızı ve portföyünüzü çeşitlendirmenizi öneririm."""
+                
+            except Exception as web_error:
+                print(f"Web Search Agent hatası: {web_error}")
+                # Web analizi başarısız, eski yöntemi kullan
+                news_articles = get_news_articles("Koç Holding", days=7)
+                sentiment_analysis = analyze_news_sentiment(news_articles)
+                news_prediction = get_news_based_prediction(sentiment_analysis, result)
+                news_insights = generate_news_insights(sentiment_analysis)
+                
+                # Tahmin sonucunu formatla
+                if news_prediction:
+                    final_result = news_prediction['adjusted_prediction']
+                    sentiment_impact = "Haberler olumlu etki yaratıyor" if sentiment_analysis['overall_sentiment'] == 'positive' else "Haberler olumsuz etki yaratıyor" if sentiment_analysis['overall_sentiment'] == 'negative' else "Haberler nötr etki"
+                else:
+                    final_result = result
+                    sentiment_impact = "Haber analizi yapılamadı"
+                
+                trend_text = "Yükseliş bekleniyor!" if final_result['change'] > 0 else "Düşüş bekleniyor!" if final_result['change'] < 0 else "Fiyat sabit kalabilir"
+                
                 response = f"""KCHOL Hisse Senedi Fiyat Tahmini
 
 Mevcut durumda KCHOL hisse senedi {result['current_price']} TL seviyesinde işlem görüyor.
 
-{trend_analysis} {trend_summary}
+Teknik analiz sonuçlarına göre, KCHOL hisse senedinin {final_result['predicted_price']} TL seviyesine {final_result['change']:+.2f} TL ({final_result['change_percent']:+.2f}%) değişimle ulaşması bekleniyor. {trend_text}
 
-{news_impact}
+{news_insights}
 
-{risk_level}
+{sentiment_impact}
 
 Yatırım kararı vermeden önce risk yönetimi yapmanızı ve portföyünüzü çeşitlendirmenizi öneririm."""
-                
-                return response
-            
-            # Gemini ile yanıt oluşturmayı dene
-            if gemini_model:
-                try:
-                    prediction_context = f"""
-KCHOL hisse senedi fiyat tahmini verileri:
-- Mevcut fiyat: {result['current_price']} TL
-- Tahmin edilen fiyat: {final_result['predicted_price']} TL
-- Değişim: {final_result['change']:+.2f} TL ({final_result['change_percent']:+.2f}%)
-- Tahmin tarihi: {result['prediction_date']}
-- Trend: {trend_text}
-- Haber etkisi: {sentiment_impact}
-- Haber analizi: {news_insights}
-
-Bu verileri kullanarak kullanıcıya net, anlaşılır ve profesyonel bir fiyat tahmini yanıtı ver. 
-Emoji kullanma, düzyazı şeklinde yaz. ChatGPT tarzında net ve kısa cevaplar ver.
-"""
-                    gemini_response = get_gemini_response(original_message, prediction_context)
-                    if gemini_response:
-                        response = gemini_response
-                    else:
-                        response = create_smart_prediction_response()
-                except Exception as e:
-                    print(f"Gemini hatası: {e}")
-                    response = create_smart_prediction_response()
-            else:
-                response = create_smart_prediction_response()
             
             # Bot yanıtını oturuma ekle
-            add_message_to_session(session_id, 'bot', response, 'prediction', final_result)
+            add_message_to_session(session_id, 'bot', response, 'prediction', result)
             
             return jsonify({
                 'response': response,
                 'type': 'prediction',
-                'data': final_result,
-                'news_analysis': sentiment_analysis,
+                'data': result,
                 'session_id': session_id
             })
             
@@ -1057,9 +1140,28 @@ Size şu konularda yardımcı olabilirim:
 📈 Fiyat Tahmini: "Fiyat tahmini yap", "Ne olacak", "Yükselir mi" gibi sorular
 📰 Haber Analizi: "Haber analizi yap", "Son haberler" gibi sorular
 💡 Öneriler: Yatırım kararlarınız için veri tabanlı öneriler
-❓ Genel Sorular: KCHOL, finans, yatırım ve ekonomi hakkında her türlü soru
+🔍 Finansal Q&A: Doğal dil ile finansal sorular
+🎯 Hisse Simülasyonu: Geçmiş yatırım senaryoları
 
-Teknik Analiz Özellikleri:
+📊 **Hisse Simülasyon Örnekleri:**
+• "KCHOL'a 6 ay önce 10.000 TL yatırsaydım ne olurdu?"
+• "THYAO'ya 1 yıl önce 50.000 TL yatırsaydım kaç para kazanırdım?"
+• "GARAN'a 3 ay önce 25.000 TL yatırım simülasyonu"
+• "AKBNK'ya 2023 başında 100.000 TL yatırsaydım ne olurdu?"
+
+🔍 **Finansal Q&A Örnekleri:**
+• "Son 6 ayda THYAO'nun ortalama hacmi nedir?"
+• "XU100 endeksinden hangi hisseler bugün düştü?"
+• "Bana RSI'si 70 üstü olan hisseleri listeler misin?"
+• "KCHOL'un RSI değeri nedir?"
+• "GARAN'ın son 3 aylık hacim analizi"
+
+📚 **Finansal Eğitim:**
+• "RSI nedir?" - Teknik gösterge eğitimi
+• "Volatilite yüksek ne demek?" - Risk analizi
+• "SMA 50 ve SMA 200 neyi ifade eder?" - Hareketli ortalamalar
+
+📈 **Teknik Analiz Özellikleri:**
 • RSI (Relative Strength Index)
 • MACD (Moving Average Convergence Divergence)
 • SMA (Simple Moving Average) - 20, 50, 200 günlük
@@ -1120,8 +1222,27 @@ Genel Durum: {sentiment_analysis['overall_sentiment'].upper()}
                     'session_id': session_id
                 })
                 
-        elif any(word in message for word in ['strateji', 'yatırım stratejisi', 'investment strategy', 'nasıl yatırım', 'portföy', 'portfolio', 'risk', 'risk yönetimi', 'yatırım', 'investment', 'alım', 'satım', 'trading', 'dca', 'dollar cost averaging', 'stop loss', 'temettü', 'dividend', 'uzun vadeli', 'kısa vadeli', 'swing trading', 'day trading', 'momentum', 'value investing', 'growth investing']):
-            # Yatırım stratejisi için özel yanıt
+        elif any(word in message for word in ['konservatif', 'agresif', 'dengeli', 'riskli', 'güvenli', 'düşüşte alım', 'kişiselleştirilmiş', 'özel tavsiye', 'risk profili', 'yatırım tavsiyesi', 'hangi hisseler', 'uygun hisseler', 'öneri', 'tavsiye']) or ('kısa vadeli' in message.lower() and ('yatırımcı' in message.lower() or 'yatırım' in message.lower())) or ('uzun vadeli' in message.lower() and ('yatırımcı' in message.lower() or 'yatırım' in message.lower())) or ('orta vadeli' in message.lower() and ('yatırımcı' in message.lower() or 'yatırım' in message.lower())):
+            # Kişiselleştirilmiş yatırım tavsiyesi
+            if investment_advisor:
+                try:
+                    print(f"Investment Advisor'a gönderilen soru: {original_message}")
+                    advice_result = investment_advisor.generate_personalized_advice(original_message)
+                    
+                    if advice_result.get('success'):
+                        response = advice_result.get('advice', 'Tavsiye oluşturulamadı.')
+                        
+                        add_message_to_session(session_id, 'bot', response, 'personalized_advice', advice_result)
+                        return jsonify({
+                            'response': response,
+                            'type': 'personalized_advice',
+                            'data': advice_result,
+                            'session_id': session_id
+                        })
+                except Exception as e:
+                    print(f"Investment Advisor hatası: {e}")
+            
+            # Fallback: Eski strateji yanıtı
             def create_investment_strategy_response():
                 # Mevcut fiyat bilgisini al
                 try:
@@ -1200,6 +1321,178 @@ Not: Bu öneriler genel bilgi amaçlıdır. Yatırım kararı vermeden önce pro
                 'type': 'investment_strategy',
                 'session_id': session_id
             })
+            
+        elif any(word in message for word in ['simülasyon', 'simulasyon', 'simulation', 'yatırım simülasyonu', 'yatirim simulasyonu', 'ne olurdu', 'olurdu', 'kaç para', 'kac para', 'kazanç', 'kazanc']):
+            # Hisse simülasyon analizi
+            if hisse_simulasyon:
+                try:
+                    print(f"Hisse Simülasyon'a gönderilen soru: {original_message}")
+                    
+                    # Kullanıcı mesajından bilgileri çıkar
+                    import re
+                    
+                    # Hisse kodu çıkar
+                    hisse_pattern = r'\b([A-Z]{2,6}(?:\.IS)?)\b'
+                    hisse_match = re.search(hisse_pattern, original_message.upper())
+                    hisse_kodu = hisse_match.group(1) if hisse_match else None
+                    
+                    # Tarih çıkar
+                    tarih_pattern = r'\b(\d+\s*(?:ay|yıl|hafta|gün)\s*önce|\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{4}\s*başı|\d{4}\s*sonu)\b'
+                    tarih_match = re.search(tarih_pattern, original_message.lower())
+                    tarih = tarih_match.group(1) if tarih_match else "1 ay önce"
+                    
+                    # Tutar çıkar - gelişmiş yaklaşım
+                    # Önce "bin" kelimesini kontrol et
+                    if "bin" in original_message.lower():
+                        # "10 bin" -> 10000
+                        bin_pattern = r'(\d+)\s*bin'
+                        bin_match = re.search(bin_pattern, original_message.lower())
+                        if bin_match:
+                            tutar = float(bin_match.group(1)) * 1000
+                        else:
+                            tutar = 10000.0
+                    else:
+                        # Tüm sayıları bul ve en büyük olanı al
+                        # Önce çoklu noktalı sayıları (1.500.000 gibi) bul
+                        multi_dot_numbers = re.findall(r'\d+\.\d+\.\d+', original_message)
+                        if multi_dot_numbers:
+                            # Çoklu noktalı sayıları işle (1.500.000 -> 1500000)
+                            numbers = []
+                            for num_str in multi_dot_numbers:
+                                # Tüm noktaları kaldır ve sayıya çevir
+                                clean_num = num_str.replace('.', '')
+                                numbers.append(int(clean_num))
+                            tutar = max(numbers)
+                        else:
+                            # Tek noktalı sayıları (10.000 gibi) bul
+                            dot_numbers = re.findall(r'\d+\.\d+', original_message)
+                            if dot_numbers:
+                                # Noktalı sayıları işle (10.000 -> 10000)
+                                numbers = []
+                                for num_str in dot_numbers:
+                                    # Noktayı kaldır ve sayıya çevir
+                                    clean_num = num_str.replace('.', '')
+                                    numbers.append(int(clean_num))
+                                tutar = max(numbers)
+                            else:
+                                # Normal sayıları bul
+                                all_numbers = re.findall(r'\d+', original_message)
+                                if all_numbers:
+                                    # En büyük sayıyı bul (muhtemelen yatırım tutarı)
+                                    numbers = [int(num) for num in all_numbers]
+                                    tutar = max(numbers)
+                                else:
+                                    # Varsayılan tutar
+                                    tutar = 10000.0
+                    
+                    if not hisse_kodu:
+                        # Varsayılan hisse kodları
+                        default_hisseler = ['KCHOL.IS', 'THYAO.IS', 'GARAN.IS', 'AKBNK.IS']
+                        for hisse in default_hisseler:
+                            if hisse.lower().replace('.is', '') in original_message.lower():
+                                hisse_kodu = hisse
+                                break
+                        
+                        if not hisse_kodu:
+                            hisse_kodu = 'KCHOL.IS'  # Varsayılan
+                    
+                    # Simülasyon çalıştır
+                    sim_result = hisse_simulasyon(hisse_kodu, tarih, tutar)
+                    
+                    if 'hata' not in sim_result:
+                        response = f"""📊 **Hisse Senedi Simülasyon Sonucu**
+
+🎯 **Simülasyon Detayları:**
+• **Hisse:** {sim_result['hisse']}
+• **Başlangıç Tarihi:** {sim_result['başlangıç tarihi']}
+• **Yatırım Tutarı:** {tutar:,.2f} TL
+
+💰 **Fiyat Analizi:**
+• **Başlangıç Fiyatı:** {sim_result['başlangıç fiyatı']} TL
+• **Güncel Fiyat:** {sim_result['güncel fiyat']} TL
+• **Alınan Lot:** {sim_result['alınan lot']} adet
+
+📈 **Sonuç:**
+• **Şu Anki Değer:** {sim_result['şu anki değer']:,.2f} TL
+• **Net Kazanç:** {sim_result['net kazanç']:,.2f} TL
+• **Getiri Oranı:** %{sim_result['getiri %']:.2f}
+
+{'🟢 **KARLILIK**' if sim_result['net kazanç'] > 0 else '🔴 **ZARAR**' if sim_result['net kazanç'] < 0 else '⚪ **BREAKEVEN**'}
+
+⚠️ **Risk Uyarısı:** Bu simülasyon geçmiş verilere dayalıdır. Gelecekteki performans garantisi vermez. Yatırım kararı vermeden önce profesyonel danışmanlık alın."""
+                    else:
+                        response = f"❌ Simülasyon hatası: {sim_result['hata']}"
+                    
+                    add_message_to_session(session_id, 'bot', response, 'simulation', sim_result)
+                    return jsonify({
+                        'response': response,
+                        'type': 'simulation',
+                        'data': sim_result,
+                        'session_id': session_id
+                    })
+                        
+                except Exception as sim_error:
+                    print(f"Hisse simülasyon hatası: {sim_error}")
+                    error_response = 'Hisse simülasyonu yapılamadı. Lütfen daha sonra tekrar deneyin.'
+                    add_message_to_session(session_id, 'bot', error_response, 'error')
+                    return jsonify({
+                        'response': error_response,
+                        'type': 'error',
+                        'session_id': session_id
+                    })
+            else:
+                error_response = 'Hisse simülasyon sistemi şu anda kullanılamıyor.'
+                add_message_to_session(session_id, 'bot', error_response, 'error')
+                return jsonify({
+                    'response': error_response,
+                    'type': 'error',
+                    'session_id': session_id
+                })
+            
+        elif any(word in message for word in ['hacim', 'volume', 'ortalama hacim', 'xu100', 'bist', 'endeks', 'index', 'rsi', 'macd', 'sma', 'bollinger', 'williams', '70 üstü', '70 üzeri', '70 ustu', '70 uzeri', 'thyao', 'garan', 'akbnk', 'isctr', 'asels', 'eregl', 'sasa']):
+            # Finansal Q&A Agent ile doğal dil soruları
+            if financial_qa_agent:
+                try:
+                    print(f"Finansal Q&A Agent'a gönderilen soru: {original_message}")
+                    qa_result = financial_qa_agent.process_financial_question(original_message)
+                    
+                    if qa_result.get('success'):
+                        response = qa_result.get('response', 'Yanıt oluşturulamadı.')
+                        question_type = qa_result.get('question_type', 'unknown')
+                        
+                        add_message_to_session(session_id, 'bot', response, 'financial_qa', qa_result)
+                        return jsonify({
+                            'response': response,
+                            'type': 'financial_qa',
+                            'data': qa_result,
+                            'session_id': session_id
+                        })
+                    else:
+                        error_response = f"Finansal analiz hatası: {qa_result.get('error', 'Bilinmeyen hata')}"
+                        add_message_to_session(session_id, 'bot', error_response, 'error')
+                        return jsonify({
+                            'response': error_response,
+                            'type': 'error',
+                            'session_id': session_id
+                        })
+                        
+                except Exception as qa_error:
+                    print(f"Finansal Q&A hatası: {qa_error}")
+                    error_response = 'Finansal analiz yapılamadı. Lütfen daha sonra tekrar deneyin.'
+                    add_message_to_session(session_id, 'bot', error_response, 'error')
+                    return jsonify({
+                        'response': error_response,
+                        'type': 'error',
+                        'session_id': session_id
+                    })
+            else:
+                error_response = 'Finansal Q&A sistemi şu anda kullanılamıyor.'
+                add_message_to_session(session_id, 'bot', error_response, 'error')
+                return jsonify({
+                    'response': error_response,
+                    'type': 'error',
+                    'session_id': session_id
+                })
             
         else:
             # Document RAG Agent ile profesyonel yanıtlar
@@ -1474,4 +1767,4 @@ def get_technical_analysis():
         }), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=3005)
+    app.run(debug=True, host='0.0.0.0', port=3000)

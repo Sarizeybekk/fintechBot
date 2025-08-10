@@ -1495,18 +1495,328 @@ function clearAllChats() {
 
 // Ayarları sıfırla
 function resetSettings() {
-    if (confirm('Tüm ayarları varsayılana döndürmek istediğinizden emin misiniz?')) {
-        // Varsayılan ayarları yükle
-        document.getElementById('autoSave').checked = true;
-        document.getElementById('autoScroll').checked = true;
-        document.getElementById('showSuggestions').checked = true;
-        document.getElementById('voiceRecognition').checked = true;
-        document.getElementById('voiceLanguage').value = 'tr-TR';
-        document.getElementById('chartQuality').value = '2';
-        document.getElementById('chartFormat').value = 'png';
-        
-        // Ayarları kaydet ve uygula
-        saveSettings();
-        showToast('Ayarlar sıfırlandı', 'success');
+    // Ayarları varsayılana döndür
+    localStorage.removeItem('theme');
+    localStorage.removeItem('settings');
+    
+    // Varsayılan ayarları uygula
+    applyTheme('light');
+    applySettings({
+        autoSave: true,
+        autoScroll: true,
+        showSuggestions: true,
+        voiceRecognition: true,
+        voiceLanguage: 'tr-TR',
+        chartQuality: 2,
+        chartFormat: 'png'
+    });
+    
+    showToast('Ayarlar varsayılana döndürüldü', 'success');
+    closeSettingsModal();
+}
+
+// Simulation Modal Functions
+function openSimulationModal() {
+    const simulationModal = document.getElementById('simulationModal');
+    simulationModal.classList.add('show');
+    
+    // Reset form
+    resetSimulationForm();
+    
+    // Hide result section
+    const resultSection = document.getElementById('simulationResult');
+    resultSection.style.display = 'none';
+}
+
+function closeSimulationModal() {
+    const simulationModal = document.getElementById('simulationModal');
+    simulationModal.classList.remove('show');
+}
+
+function resetSimulationForm() {
+    document.getElementById('simulationStock').value = 'KCHOL.IS';
+    document.getElementById('simulationDate').value = '6 ay önce';
+    document.getElementById('simulationAmount').value = '10000';
+}
+
+function loadSimulationExample(stock, date, amount) {
+    document.getElementById('simulationStock').value = stock;
+    document.getElementById('simulationDate').value = date;
+    document.getElementById('simulationAmount').value = amount;
+    
+    // Highlight the clicked example button
+    const exampleButtons = document.querySelectorAll('.example-btn');
+    exampleButtons.forEach(btn => btn.classList.remove('active'));
+    
+    // Find and highlight the clicked button
+    const clickedButton = Array.from(exampleButtons).find(btn => 
+        btn.textContent.includes(stock.split('.')[0]) && 
+        btn.textContent.includes(amount.toString())
+    );
+    
+    if (clickedButton) {
+        clickedButton.classList.add('active');
+        setTimeout(() => clickedButton.classList.remove('active'), 2000);
     }
-} 
+}
+
+async function runSimulation() {
+    const stock = document.getElementById('simulationStock').value.trim();
+    const date = document.getElementById('simulationDate').value.trim();
+    const amount = parseFloat(document.getElementById('simulationAmount').value);
+    
+    // Validation
+    if (!stock) {
+        showToast('Lütfen hisse kodunu girin', 'error');
+        return;
+    }
+    
+    if (!date) {
+        showToast('Lütfen başlangıç tarihini girin', 'error');
+        return;
+    }
+    
+    if (!amount || amount < 100) {
+        showToast('Lütfen geçerli bir yatırım tutarı girin (minimum 100 TL)', 'error');
+        return;
+    }
+    
+    // Show loading state
+    const resultSection = document.getElementById('simulationResult');
+    const resultContent = document.getElementById('resultContent');
+    
+    resultSection.style.display = 'block';
+    resultContent.innerHTML = `
+        <div class="simulation-loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Simülasyon hesaplanıyor...</p>
+        </div>
+    `;
+    
+    // Scroll to result
+    resultSection.scrollIntoView({ behavior: 'smooth' });
+    
+    try {
+        // Create simulation message
+        const simulationMessage = `${stock} hissesine ${date} ${amount.toLocaleString('tr-TR')} TL yatırsaydım ne olurdu?`;
+        
+        // Send to chat API
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: simulationMessage
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success === false) {
+            throw new Error(data.response || 'Simülasyon hatası');
+        }
+        
+        // Display result
+        displaySimulationResult(data);
+        
+    } catch (error) {
+        console.error('Simulation error:', error);
+        resultContent.innerHTML = `
+            <div class="simulation-error">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Simülasyon hatası: ${error.message}</span>
+            </div>
+        `;
+    }
+}
+
+function displaySimulationResult(data) {
+    const resultContent = document.getElementById('resultContent');
+    
+    if (data.type === 'simulation' && data.data) {
+        const simData = data.data;
+        
+        // Check if there's an error
+        if (simData.hata) {
+            resultContent.innerHTML = `
+                <div class="simulation-error">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>${simData.hata}</span>
+                </div>
+            `;
+            return;
+        }
+        
+        // Format the result
+        const profitClass = simData['net kazanç'] > 0 ? 'profit' : simData['net kazanç'] < 0 ? 'loss' : 'neutral';
+        const profitIcon = simData['net kazanç'] > 0 ? '🟢' : simData['net kazanç'] < 0 ? '🔴' : '⚪';
+        
+        resultContent.innerHTML = `
+            <div class="result-item">
+                <span class="result-label">Hisse Kodu:</span>
+                <span class="result-value">${simData.hisse}</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Başlangıç Tarihi:</span>
+                <span class="result-value">${simData['başlangıç tarihi']}</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Yatırım Tutarı:</span>
+                <span class="result-value">${parseFloat(simData['şu anki değer'] - simData['net kazanç']).toLocaleString('tr-TR')} TL</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Başlangıç Fiyatı:</span>
+                <span class="result-value">${simData['başlangıç fiyatı']} TL</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Güncel Fiyat:</span>
+                <span class="result-value">${simData['güncel fiyat']} TL</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Alınan Lot:</span>
+                <span class="result-value">${simData['alınan lot']} adet</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Şu Anki Değer:</span>
+                <span class="result-value">${simData['şu anki değer'].toLocaleString('tr-TR')} TL</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Net Kazanç:</span>
+                <span class="result-value ${profitClass}">${profitIcon} ${simData['net kazanç'].toLocaleString('tr-TR')} TL</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Getiri Oranı:</span>
+                <span class="result-value ${profitClass}">%${simData['getiri %'].toFixed(2)}</span>
+            </div>
+        `;
+        
+        // Store result for sharing/downloading
+        window.lastSimulationResult = {
+            data: simData,
+            timestamp: new Date().toISOString(),
+            message: data.response
+        };
+        
+    } else {
+        // Fallback: display the response text
+        resultContent.innerHTML = `
+            <div class="result-content">
+                <p>${data.response}</p>
+            </div>
+        `;
+    }
+}
+
+function shareSimulationResult() {
+    if (!window.lastSimulationResult) {
+        showToast('Paylaşılacak sonuç bulunamadı', 'error');
+        return;
+    }
+    
+    const result = window.lastSimulationResult;
+    const shareText = `📊 Hisse Senedi Simülasyon Sonucu
+
+${result.data.hisse} - ${result.data['başlangıç tarihi']}
+Yatırım: ${(result.data['şu anki değer'] - result.data['net kazanç']).toLocaleString('tr-TR')} TL
+Güncel Değer: ${result.data['şu anki değer'].toLocaleString('tr-TR')} TL
+Net Kazanç: ${result.data['net kazanç'].toLocaleString('tr-TR')} TL (%${result.data['getiri %'].toFixed(2)})
+
+Fintra Hisse Senedi Asistanı ile hesaplandı`;
+
+    // Try to use Web Share API
+    if (navigator.share) {
+        navigator.share({
+            title: 'Hisse Senedi Simülasyon Sonucu',
+            text: shareText,
+            url: window.location.href
+        }).catch(err => {
+            console.log('Share failed:', err);
+            copyToClipboard(shareText);
+        });
+    } else {
+        copyToClipboard(shareText);
+    }
+}
+
+function downloadSimulationResult() {
+    if (!window.lastSimulationResult) {
+        showToast('İndirilecek sonuç bulunamadı', 'error');
+        return;
+    }
+    
+    const result = window.lastSimulationResult;
+    const content = `Hisse Senedi Simülasyon Raporu
+=====================================
+
+Tarih: ${new Date(result.timestamp).toLocaleString('tr-TR')}
+Hisse: ${result.data.hisse}
+Başlangıç Tarihi: ${result.data['başlangıç tarihi']}
+
+YATIRIM DETAYLARI:
+- Yatırım Tutarı: ${(result.data['şu anki değer'] - result.data['net kazanç']).toLocaleString('tr-TR')} TL
+- Başlangıç Fiyatı: ${result.data['başlangıç fiyatı']} TL
+- Alınan Lot: ${result.data['alınan lot']} adet
+
+GÜNCEL DURUM:
+- Güncel Fiyat: ${result.data['güncel fiyat']} TL
+- Şu Anki Değer: ${result.data['şu anki değer'].toLocaleString('tr-TR')} TL
+- Net Kazanç: ${result.data['net kazanç'].toLocaleString('tr-TR')} TL
+- Getiri Oranı: %${result.data['getiri %'].toFixed(2)}
+
+${result.data['net kazanç'] > 0 ? '✅ KARLILIK' : result.data['net kazanç'] < 0 ? '❌ ZARAR' : '⚪ BREAKEVEN'}
+
+Not: Bu simülasyon geçmiş verilere dayalıdır. Gelecekteki performans garantisi vermez.
+Fintra Hisse Senedi Asistanı ile oluşturulmuştur.`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `simulasyon_${result.data.hisse.replace('.IS', '')}_${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showToast('Simülasyon sonucu indirildi', 'success');
+}
+
+function runNewSimulation() {
+    resetSimulationForm();
+    const resultSection = document.getElementById('simulationResult');
+    resultSection.style.display = 'none';
+    
+    // Focus on stock input
+    document.getElementById('simulationStock').focus();
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(event) {
+    const simulationModal = document.getElementById('simulationModal');
+    if (event.target === simulationModal) {
+        closeSimulationModal();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeSimulationModal();
+    }
+});
+
+// Initialize the application
+document.addEventListener('DOMContentLoaded', function() {
+    initTheme();
+    initSpeechRecognition();
+    initChatHistory();
+    loadSettings();
+    watchSystemTheme();
+    
+    // Focus on message input
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput) {
+        messageInput.focus();
+    }
+}); 
