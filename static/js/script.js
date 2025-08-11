@@ -262,12 +262,22 @@ async function sendMessage(message = null) {
     
     try {
         // API'ye istek gönder
+        const sessionId = getCurrentSessionId();
+        console.log('Session ID:', sessionId);
+        console.log('Sending message:', messageText);
+        
+        const requestBody = { 
+            message: messageText,
+            session_id: sessionId
+        };
+        console.log('Request body:', requestBody);
+        
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ message: messageText })
+            body: JSON.stringify(requestBody)
         });
         
         const data = await response.json();
@@ -1811,14 +1821,13 @@ document.addEventListener('DOMContentLoaded', function() {
     initTheme();
     initSpeechRecognition();
     initChatHistory();
-    loadSettings();
-    watchSystemTheme();
+    showWelcomeMessage();
     
-    // Focus on message input
-    const messageInput = document.getElementById('messageInput');
-    if (messageInput) {
-        messageInput.focus();
-    }
+    // Event listeners
+    document.getElementById('messageInput').addEventListener('keypress', handleKeyPress);
+    
+    // Tema değişikliği dinleyicisi
+    watchSystemTheme();
 }); 
 
 // Portfolio Management Functions
@@ -2184,3 +2193,1005 @@ document.addEventListener('DOMContentLoaded', function() {
     // Portföy yenileme için otomatik yenileme (5 dakikada bir)
     setInterval(refreshPortfolio, 5 * 60 * 1000);
 }); 
+
+// Finansal Takvim Fonksiyonları
+function openCalendarModal() {
+    const calendarModal = document.getElementById('calendarModal');
+    calendarModal.classList.add('show');
+    loadCalendarData();
+}
+
+function closeCalendarModal() {
+    const calendarModal = document.getElementById('calendarModal');
+    calendarModal.classList.remove('show');
+}
+
+function switchCalendarTab(tabName) {
+    // Tüm tab butonlarını pasif yap
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    tabBtns.forEach(btn => btn.classList.remove('active'));
+    
+    // Tüm tab içeriklerini gizle
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabContents.forEach(content => content.classList.remove('active'));
+    
+    // Seçilen tab'ı aktif yap
+    const activeTabBtn = document.querySelector(`[onclick="switchCalendarTab('${tabName}')"]`);
+    if (activeTabBtn) {
+        activeTabBtn.classList.add('active');
+    }
+    
+    const activeTabContent = document.getElementById(`${tabName}Tab`);
+    if (activeTabContent) {
+        activeTabContent.classList.add('active');
+    }
+    
+    // Tab'a özel veri yükle
+    switch(tabName) {
+        case 'overview':
+            loadCalendarOverview();
+            break;
+        case 'company':
+            loadCompanyList();
+            break;
+        case 'upcoming':
+            loadUpcomingEvents();
+            break;
+        case 'add':
+            resetEventForm();
+            break;
+    }
+}
+
+async function loadCalendarData() {
+    try {
+        const response = await fetch('/api/calendar');
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                // Genel bakış tab'ını yükle
+                loadCalendarOverview();
+                // Şirket listesini yükle
+                loadCompanyList();
+            }
+        }
+    } catch (error) {
+        console.error('Takvim verisi yükleme hatası:', error);
+        showToast('Takvim verisi yüklenirken hata oluştu', 'error');
+    }
+}
+
+async function loadCalendarOverview() {
+    try {
+        const response = await fetch('/api/calendar');
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                updateCompanyStats(data.data);
+                updateCalendarTable(data.data);
+            }
+        }
+    } catch (error) {
+        console.error('Genel bakış yükleme hatası:', error);
+    }
+}
+
+function updateCompanyStats(calendarData) {
+    const companyStats = document.getElementById('companyStats');
+    if (!companyStats) return;
+    
+    const companies = Object.keys(calendarData);
+    const totalEvents = companies.reduce((total, company) => {
+        return total + calendarData[company].events.length;
+    }, 0);
+    
+    const completedEvents = companies.reduce((total, company) => {
+        return total + calendarData[company].events.filter(event => event.status === 'tamamlandı').length;
+    }, 0);
+    
+    const pendingEvents = totalEvents - completedEvents;
+    
+    companyStats.innerHTML = `
+        <div class="company-stat-card">
+            <h5>Toplam Şirket</h5>
+            <div class="stat-value">${companies.length}</div>
+        </div>
+        <div class="company-stat-card">
+            <h5>Toplam Olay</h5>
+            <div class="stat-value">${totalEvents}</div>
+        </div>
+        <div class="company-stat-card">
+            <h5>Tamamlanan</h5>
+            <div class="stat-value">${completedEvents}</div>
+        </div>
+        <div class="company-stat-card">
+            <h5>Bekleyen</h5>
+            <div class="stat-value">${pendingEvents}</div>
+        </div>
+    `;
+}
+
+function updateCalendarTable(calendarData) {
+    const calendarTable = document.getElementById('calendarTable');
+    if (!calendarTable) return;
+    
+    let tableHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th>Şirket</th>
+                    <th>Olay Türü</th>
+                    <th>Tarih</th>
+                    <th>Açıklama</th>
+                    <th>Durum</th>
+                    <th>Kaynak</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    const companies = Object.keys(calendarData);
+    companies.forEach(company => {
+        const companyData = calendarData[company];
+        companyData.events.forEach(event => {
+            const statusClass = event.status === 'tamamlandı' ? 'completed' : 'pending';
+            const statusText = event.status === 'tamamlandı' ? 'Tamamlandı' : 'Bekliyor';
+            
+            tableHTML += `
+                <tr>
+                    <td><strong>${companyData.company_name} (${company})</strong></td>
+                    <td>${event.type.charAt(0).toUpperCase() + event.type.slice(1)}</td>
+                    <td>${formatDate(event.date)}</td>
+                    <td>${event.description}</td>
+                    <td><span class="event-status ${statusClass}">${statusText}</span></td>
+                    <td>${event.source}</td>
+                </tr>
+            `;
+        });
+    });
+    
+    tableHTML += '</tbody></table>';
+    calendarTable.innerHTML = tableHTML;
+}
+
+async function loadCompanyList() {
+    try {
+        const response = await fetch('/api/calendar');
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                const companySelect = document.getElementById('companySelect');
+                const updateCompanyBtn = document.getElementById('updateCompanyBtn');
+                
+                // Mevcut seçimi sakla
+                const currentSelection = companySelect.value;
+                
+                // Şirket listesini güncelle
+                    companySelect.innerHTML = '<option value="">Şirket seçin...</option>';
+                    
+                Object.keys(data.data).forEach(symbol => {
+                        const option = document.createElement('option');
+                    option.value = symbol;
+                    option.textContent = `${symbol} - ${data.data[symbol].company_name}`;
+                        companySelect.appendChild(option);
+                    });
+                
+                // Önceki seçimi geri yükle
+                if (currentSelection && data.data[currentSelection]) {
+                    companySelect.value = currentSelection;
+                    loadCompanyCalendar();
+                }
+                
+                // Güncelleme butonunu göster
+                if (updateCompanyBtn) {
+                    updateCompanyBtn.style.display = 'inline-block';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Şirket listesi yükleme hatası:', error);
+    }
+}
+
+async function updateSelectedCompany() {
+    const companySelect = document.getElementById('companySelect');
+    const selectedSymbol = companySelect.value;
+    
+    if (!selectedSymbol) {
+        showToast('Lütfen bir şirket seçin', 'warning');
+        return;
+    }
+    
+    await updateCompanyCalendar(selectedSymbol);
+}
+
+async function loadCompanyCalendar() {
+    const companySelect = document.getElementById('companySelect');
+    const companyEvents = document.getElementById('companyEvents');
+    
+    if (!companySelect || !companyEvents || !companySelect.value) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/calendar/company/${companySelect.value}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                displayCompanyEvents(data.data);
+            }
+        }
+    } catch (error) {
+        console.error('Şirket takvimi yükleme hatası:', error);
+        showToast('Şirket takvimi yüklenirken hata oluştu', 'error');
+    }
+}
+
+function displayCompanyEvents(companyData) {
+    const companyEvents = document.getElementById('companyEvents');
+    if (!companyEvents) return;
+    
+    let eventsHTML = `
+        <h4><i class="fas fa-building"></i> ${companyData.company_name} Finansal Olayları</h4>
+    `;
+    
+    if (companyData.events.length === 0) {
+        eventsHTML += '<p>Bu şirket için henüz finansal olay bulunmamaktadır.</p>';
+    } else {
+        companyData.events.forEach(event => {
+            const statusIcon = event.status === 'tamamlandı' ? '✅' : '⏳';
+            eventsHTML += `
+                <div class="event-item">
+                    <div class="event-header">
+                        <span class="event-type">${statusIcon} ${event.type.charAt(0).toUpperCase() + event.type.slice(1)}</span>
+                        <span class="event-date">${formatDate(event.date)}</span>
+                    </div>
+                    <div class="event-description">${event.description}</div>
+                    <div class="event-meta">
+                        <span><i class="fas fa-link"></i> ${event.source}</span>
+                        <span><i class="fas fa-info-circle"></i> ${event.status === 'tamamlandı' ? 'Tamamlandı' : 'Bekliyor'}</span>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    
+    companyEvents.innerHTML = eventsHTML;
+}
+
+async function loadUpcomingEvents() {
+    const upcomingDays = document.getElementById('upcomingDays');
+    const days = upcomingDays ? upcomingDays.value : 30;
+    
+    try {
+        const response = await fetch(`/api/calendar/upcoming?days=${days}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                displayUpcomingEvents(data.data);
+            }
+        }
+    } catch (error) {
+        console.error('Yaklaşan olaylar yükleme hatası:', error);
+        showToast('Yaklaşan olaylar yüklenirken hata oluştu', 'error');
+    }
+}
+
+function displayUpcomingEvents(events) {
+    const upcomingEvents = document.getElementById('upcomingEvents');
+    if (!upcomingEvents) return;
+    
+    let eventsHTML = `
+        <h4><i class="fas fa-clock"></i> Yaklaşan Finansal Olaylar</h4>
+    `;
+    
+    if (events.length === 0) {
+        eventsHTML += '<p>Önümüzdeki günlerde finansal olay bulunmamaktadır.</p>';
+    } else {
+        events.forEach(event => {
+            const daysUntil = Math.ceil((new Date(event.date) - new Date()) / (1000 * 60 * 60 * 24));
+            const daysText = daysUntil === 0 ? 'Bugün' : daysUntil === 1 ? 'Yarın' : `${daysUntil} gün sonra`;
+            
+            eventsHTML += `
+                <div class="event-item">
+                    <div class="event-header">
+                        <span class="event-type">${event.type.charAt(0).toUpperCase() + event.type.slice(1)}</span>
+                        <span class="event-date">${formatDate(event.date)} (${daysText})</span>
+                    </div>
+                    <div class="event-description">${event.description}</div>
+                    <div class="event-meta">
+                        <span><i class="fas fa-building"></i> ${event.company_name} (${event.symbol})</span>
+                        <span><i class="fas fa-link"></i> ${event.source}</span>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    
+    upcomingEvents.innerHTML = eventsHTML;
+}
+
+async function addCalendarEvent() {
+    const symbol = document.getElementById('eventSymbol').value.trim();
+    const eventType = document.getElementById('eventType').value;
+    const eventDate = document.getElementById('eventDate').value;
+    const description = document.getElementById('eventDescription').value.trim();
+    const source = document.getElementById('eventSource').value.trim();
+    const status = document.getElementById('eventStatus').value;
+    
+    if (!symbol || !eventType || !eventDate || !description) {
+        showToast('Lütfen tüm gerekli alanları doldurun', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/calendar/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                symbol: symbol.toUpperCase(),
+                type: eventType,
+                date: eventDate,
+                description: description,
+                source: source || 'KAP',
+                status: status
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                showToast('Olay başarıyla eklendi', 'success');
+                resetEventForm();
+                // Takvimi yenile
+                loadCalendarData();
+            } else {
+                showToast(data.message || 'Olay eklenirken hata oluştu', 'error');
+            }
+        } else {
+            const errorData = await response.json();
+            showToast(errorData.message || 'Olay eklenirken hata oluştu', 'error');
+        }
+    } catch (error) {
+        console.error('Olay ekleme hatası:', error);
+        showToast('Olay eklenirken hata oluştu', 'error');
+    }
+}
+
+function resetEventForm() {
+    document.getElementById('eventSymbol').value = '';
+    document.getElementById('eventType').value = 'bilanço';
+    document.getElementById('eventDate').value = '';
+    document.getElementById('eventDescription').value = '';
+    document.getElementById('eventSource').value = 'KAP';
+    document.getElementById('eventStatus').value = 'bekliyor';
+}
+
+async function importCalendarCSV() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv';
+    input.onchange = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+            const response = await fetch('/api/calendar/import', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    showToast('CSV dosyası başarıyla yüklendi', 'success');
+                    loadCalendarData();
+                } else {
+                    showToast(data.message || 'CSV yükleme hatası', 'error');
+                }
+            } else {
+                const errorData = await response.json();
+                showToast(errorData.message || 'CSV yükleme hatası', 'error');
+            }
+        } catch (error) {
+            console.error('CSV yükleme hatası:', error);
+            showToast('CSV yüklenirken hata oluştu', 'error');
+        }
+    };
+    
+    input.click();
+}
+
+async function exportCalendarCSV() {
+    try {
+        const response = await fetch('/api/calendar/export');
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'financial_calendar.csv';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            showToast('CSV dosyası başarıyla indirildi', 'success');
+        } else {
+            const errorData = await response.json();
+            showToast(errorData.message || 'CSV indirme hatası', 'error');
+        }
+    } catch (error) {
+        console.error('CSV indirme hatası:', error);
+        showToast('CSV indirilirken hata oluştu', 'error');
+    }
+}
+
+async function refreshCalendar() {
+    try {
+    showToast('Takvim yenileniyor...', 'info');
+    await loadCalendarData();
+        showToast('Takvim yenilendi', 'success');
+    } catch (error) {
+        console.error('Takvim yenileme hatası:', error);
+        showToast('Takvim yenilenirken hata oluştu', 'error');
+    }
+}
+
+async function updateCompanyCalendar(symbol) {
+    try {
+        showToast(`${symbol} için veri güncelleniyor...`, 'info');
+        
+        const response = await fetch(`/api/calendar/update/${symbol}`, {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                showToast(`${symbol} güncellendi`, 'success');
+                // Şirket verilerini yenile
+                if (symbol === document.getElementById('companySelect').value) {
+                    loadCompanyCalendar();
+                }
+                // Genel bakışı yenile
+                loadCalendarOverview();
+            } else {
+                showToast(data.message || 'Güncelleme başarısız', 'error');
+            }
+        } else {
+            showToast('Güncelleme hatası', 'error');
+        }
+    } catch (error) {
+        console.error('Güncelleme hatası:', error);
+        showToast('Güncelleme sırasında hata oluştu', 'error');
+    }
+}
+
+async function updateAllCompanies() {
+    try {
+        showToast('Tüm şirketler güncelleniyor...', 'info');
+        
+        const response = await fetch('/api/calendar/update-all', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                symbols: ['THYAO', 'KCHOL', 'GARAN', 'AKBNK', 'ISCTR', 'SAHOL', 'ASELS', 'EREGL'],
+                force: true
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                showToast(data.message, 'success');
+                // Tüm verileri yenile
+                loadCalendarData();
+            } else {
+                showToast(data.message || 'Toplu güncelleme başarısız', 'error');
+            }
+        } else {
+            showToast('Toplu güncelleme hatası', 'error');
+        }
+    } catch (error) {
+        console.error('Toplu güncelleme hatası:', error);
+        showToast('Toplu güncelleme sırasında hata oluştu', 'error');
+    }
+}
+
+async function searchCalendarEvents(query) {
+    try {
+        if (!query || query.trim() === '') {
+            showToast('Arama terimi gerekli', 'warning');
+            return;
+        }
+        
+        const response = await fetch(`/api/calendar/search/${encodeURIComponent(query.trim())}`);
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                displaySearchResults(data.data, query);
+            } else {
+                showToast(data.message || 'Arama başarısız', 'error');
+            }
+        } else {
+            showToast('Arama hatası', 'error');
+        }
+    } catch (error) {
+        console.error('Arama hatası:', error);
+        showToast('Arama sırasında hata oluştu', 'error');
+    }
+}
+
+function displaySearchResults(results, query) {
+    const searchResultsContainer = document.getElementById('searchResults');
+    if (!searchResultsContainer) return;
+    
+    if (results.length === 0) {
+        searchResultsContainer.innerHTML = `
+            <div class="no-results">
+                <i class="fas fa-search"></i>
+                <p>"${query}" için sonuç bulunamadı</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="search-results-header">
+            <h4>"${query}" için ${results.length} sonuç bulundu</h4>
+        </div>
+        <div class="search-results-list">
+    `;
+    
+    results.forEach(event => {
+        const eventDate = new Date(event.date);
+        const isUpcoming = eventDate > new Date();
+        const statusClass = isUpcoming ? 'upcoming' : 'completed';
+        
+        html += `
+            <div class="search-result-item ${statusClass}">
+                <div class="result-header">
+                    <span class="company-symbol">${event.symbol}</span>
+                    <span class="event-type">${event.type}</span>
+                    <span class="event-date">${formatDate(event.date)}</span>
+                </div>
+                <div class="result-description">${event.description}</div>
+                <div class="result-meta">
+                    <span class="source">${event.source}</span>
+                    <span class="status ${statusClass}">${event.status}</span>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    searchResultsContainer.innerHTML = html;
+}
+
+async function getCalendarSummary() {
+    try {
+        const response = await fetch('/api/calendar/summary');
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                updateCalendarSummary(data.data);
+            }
+        }
+    } catch (error) {
+        console.error('Özet getirme hatası:', error);
+    }
+}
+
+function updateCalendarSummary(summary) {
+    const summaryContainer = document.getElementById('calendarSummary');
+    if (!summaryContainer) return;
+    
+    summaryContainer.innerHTML = `
+        <div class="summary-grid">
+            <div class="summary-item">
+                <div class="summary-icon">
+                    <i class="fas fa-building"></i>
+                </div>
+                <div class="summary-content">
+                    <div class="summary-value">${summary.total_companies}</div>
+                    <div class="summary-label">Toplam Şirket</div>
+                </div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-icon">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <div class="summary-content">
+                    <div class="summary-value">${summary.total_events}</div>
+                    <div class="summary-label">Toplam Olay</div>
+                </div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="summary-content">
+                    <div class="summary-value">${summary.upcoming_events}</div>
+                    <div class="summary-label">Yaklaşan (30 gün)</div>
+                </div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-icon">
+                    <i class="fas fa-sync-alt"></i>
+                </div>
+                <div class="summary-content">
+                    <div class="summary-value">${summary.last_updated}</div>
+                    <div class="summary-label">Son Güncelleme</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('tr-TR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+}
+
+// Alarmlar Modal Functions
+function openAlertsModal() {
+    const alertsModal = document.getElementById('alertsModal');
+    alertsModal.classList.add('show');
+    loadAlertsData();
+}
+
+function closeAlertsModal() {
+    const alertsModal = document.getElementById('alertsModal');
+    alertsModal.classList.remove('show');
+}
+
+function switchAlertsTab(tabName) {
+    // Tüm tab butonlarından active class'ını kaldır
+    const tabBtns = document.querySelectorAll('.alerts-tabs .tab-btn');
+    tabBtns.forEach(btn => btn.classList.remove('active'));
+    
+    // Tüm tab içeriklerini gizle
+    const tabContents = document.querySelectorAll('.alerts-content .tab-content');
+    tabContents.forEach(content => content.classList.remove('active'));
+    
+    // Seçilen tab'ı aktif yap
+    const selectedBtn = document.querySelector(`[onclick="switchAlertsTab('${tabName}')"]`);
+    if (selectedBtn) selectedBtn.classList.add('active');
+    
+    const selectedContent = document.getElementById(`${tabName}AlertsTab`);
+    if (selectedContent) selectedContent.classList.add('active');
+    
+    // Seçilen tab'a göre veri yükle
+    if (tabName === 'active') {
+        loadActiveAlerts();
+    } else if (tabName === 'triggered') {
+        loadTriggeredAlerts();
+    } else if (tabName === 'cancelled') {
+        loadCancelledAlerts();
+    }
+}
+
+async function loadAlertsData() {
+    try {
+        // Önce özet bilgileri yükle
+        await loadAlertsSummary();
+        
+        // Aktif alarmları yükle
+        await loadActiveAlerts();
+        
+        // Diğer tab'ları da yükle
+        await loadTriggeredAlerts();
+        await loadCancelledAlerts();
+        
+    } catch (error) {
+        console.error('Alarm verileri yüklenirken hata:', error);
+        showToast('Alarm verileri yüklenirken hata oluştu', 'error');
+    }
+}
+
+async function loadAlertsSummary() {
+    try {
+        const sessionId = getCurrentSessionId();
+        const response = await fetch(`/api/alerts/summary?session_id=${sessionId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            updateAlertsSummary(data.data);
+        }
+    } catch (error) {
+        console.error('Alarm özeti yüklenirken hata:', error);
+    }
+}
+
+function updateAlertsSummary(summary) {
+    const activeCount = document.getElementById('activeAlertsCount');
+    const nextAlertDate = document.getElementById('nextAlertDate');
+    
+    if (activeCount) {
+        activeCount.textContent = summary.active_count || 0;
+    }
+    
+    if (nextAlertDate) {
+        if (summary.next_alert) {
+            nextAlertDate.textContent = formatDate(summary.next_alert.alert_date);
+        } else {
+            nextAlertDate.textContent = '-';
+        }
+    }
+}
+
+async function loadActiveAlerts() {
+    try {
+        const sessionId = getCurrentSessionId();
+        const response = await fetch(`/api/alerts?session_id=${sessionId}&status=active`);
+        const data = await response.json();
+        
+        if (data.success) {
+            displayAlerts(data.data.active || [], 'activeAlertsList');
+        }
+    } catch (error) {
+        console.error('Aktif alarmlar yüklenirken hata:', error);
+    }
+}
+
+async function loadTriggeredAlerts() {
+    try {
+        const sessionId = getCurrentSessionId();
+        const response = await fetch(`/api/alerts?session_id=${sessionId}&status=triggered`);
+        const data = await response.json();
+        
+        if (data.success) {
+            displayAlerts(data.data.triggered || [], 'triggeredAlertsList');
+        }
+    } catch (error) {
+        console.error('Tetiklenen alarmlar yüklenirken hata:', error);
+    }
+}
+
+async function loadCancelledAlerts() {
+    try {
+        const sessionId = getCurrentSessionId();
+        const response = await fetch(`/api/alerts?session_id=${sessionId}&status=cancelled`);
+        const data = await response.json();
+        
+        if (data.success) {
+            displayAlerts(data.data.cancelled || [], 'cancelledAlertsList');
+        }
+    } catch (error) {
+        console.error('İptal edilen alarmlar yüklenirken hata:', error);
+    }
+}
+
+function displayAlerts(alerts, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    if (alerts.length === 0) {
+        container.innerHTML = `
+            <div class="no-alerts">
+                <i class="fas fa-bell-slash"></i>
+                <p>Alarm bulunamadı</p>
+                <span>Bu kategoride henüz alarm yok</span>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = alerts.map(alert => createAlertHTML(alert)).join('');
+}
+
+function createAlertHTML(alert) {
+    const alertDate = formatDate(alert.alert_date);
+    const eventDate = formatDate(alert.event_date);
+    const createdDate = formatDate(alert.created_at);
+    
+    let statusBadge = '';
+    if (alert.status === 'active') {
+        statusBadge = '<span class="alert-status active">Aktif</span>';
+    } else if (alert.status === 'triggered') {
+        statusBadge = '<span class="alert-status triggered">Tetiklendi</span>';
+    } else if (alert.status === 'cancelled') {
+        statusBadge = '<span class="alert-status cancelled">İptal Edildi</span>';
+    }
+    
+    let actionButtons = '';
+    if (alert.status === 'active') {
+        actionButtons = `
+            <button class="alert-action-btn cancel" onclick="cancelAlert(${alert.id})">
+                <i class="fas fa-ban"></i>
+                İptal Et
+            </button>
+            <button class="alert-action-btn delete" onclick="deleteAlert(${alert.id})">
+                <i class="fas fa-trash"></i>
+                Sil
+            </button>
+        `;
+    }
+    
+    return `
+        <div class="alert-item">
+            <div class="alert-header">
+                <div class="alert-info">
+                    <span class="alert-symbol">${alert.symbol}</span>
+                    <span class="alert-type">${alert.event_type}</span>
+                    ${statusBadge}
+                </div>
+            </div>
+            
+            <div class="alert-dates">
+                <div class="alert-date-item">
+                    <i class="fas fa-bell"></i>
+                    <span class="alert-date-label">Alarm Tarihi:</span>
+                    <span class="alert-date-value">${alertDate}</span>
+                </div>
+                <div class="alert-date-item">
+                    <span class="alert-date-label">Olay Tarihi:</span>
+                    <span class="alert-date-value">${eventDate}</span>
+                </div>
+                <div class="alert-date-item">
+                    <i class="fas fa-clock"></i>
+                    <span class="alert-date-label">Oluşturulma:</span>
+                    <span class="alert-date-value">${createdDate}</span>
+                </div>
+            </div>
+            
+            <div class="alert-description">
+                ${alert.description}
+            </div>
+            
+            ${actionButtons ? `<div class="alert-actions">${actionButtons}</div>` : ''}
+        </div>
+    `;
+}
+
+async function cancelAlert(alertId) {
+    if (!confirm('Bu alarmı iptal etmek istediğinizden emin misiniz?')) {
+        return;
+    }
+    
+    try {
+        const sessionId = getCurrentSessionId();
+        const response = await fetch(`/api/alerts/cancel/${alertId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ session_id: sessionId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('Alarm başarıyla iptal edildi', 'success');
+            loadAlertsData(); // Verileri yenile
+        } else {
+            showToast('Alarm iptal edilirken hata oluştu', 'error');
+        }
+    } catch (error) {
+        console.error('Alarm iptal edilirken hata:', error);
+        showToast('Alarm iptal edilirken hata oluştu', 'error');
+    }
+}
+
+async function deleteAlert(alertId) {
+    if (!confirm('Bu alarmı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
+        return;
+    }
+    
+    try {
+        const sessionId = getCurrentSessionId();
+        const response = await fetch(`/api/alerts/delete/${alertId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ session_id: sessionId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('Alarm başarıyla silindi', 'success');
+            loadAlertsData(); // Verileri yenile
+        } else {
+            showToast('Alarm silinirken hata oluştu', 'error');
+            }
+    } catch (error) {
+        console.error('Alarm silinirken hata:', error);
+        showToast('Alarm silinirken hata oluştu', 'error');
+    }
+}
+
+function refreshAlerts() {
+    loadAlertsData();
+    showToast('Alarmlar yenilendi', 'success');
+}
+
+async function exportAlertsCSV() {
+    try {
+        const sessionId = getCurrentSessionId();
+        const response = await fetch(`/api/alerts?session_id=${sessionId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const allAlerts = [
+                ...(data.data.active || []),
+                ...(data.data.triggered || []),
+                ...(data.cancelled || [])
+            ];
+            
+            if (allAlerts.length === 0) {
+                showToast('Dışa aktarılacak alarm bulunamadı', 'warning');
+                return;
+            }
+            
+            // CSV formatına çevir
+            const csvContent = convertAlertsToCSV(allAlerts);
+            
+            // CSV dosyasını indir
+            downloadCSV(csvContent, 'alarmlar.csv');
+            
+            showToast('Alarmlar CSV olarak indirildi', 'success');
+        }
+    } catch (error) {
+        console.error('Alarmlar dışa aktarılırken hata:', error);
+        showToast('Alarmlar dışa aktarılırken hata oluştu', 'error');
+    }
+}
+
+function convertAlertsToCSV(alerts) {
+    const headers = ['ID', 'Şirket', 'Olay Türü', 'Olay Tarihi', 'Alarm Tarihi', 'Açıklama', 'Durum', 'Oluşturulma Tarihi'];
+    
+    const rows = alerts.map(alert => [
+        alert.id,
+        alert.symbol,
+        alert.event_type,
+        alert.event_date,
+        alert.alert_date,
+        alert.description,
+        alert.status,
+        alert.created_at
+    ]);
+    
+    return [headers, ...rows]
+        .map(row => row.map(field => `"${field}"`).join(','))
+        .join('\n');
+}
+
+function downloadCSV(content, filename) {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
+function getCurrentSessionId() {
+    // Session ID'yi localStorage'dan al veya yeni oluştur
+    let sessionId = localStorage.getItem('currentSessionId');
+    if (!sessionId) {
+        sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('currentSessionId', sessionId);
+    }
+    return sessionId;
+}

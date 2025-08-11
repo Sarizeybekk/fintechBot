@@ -93,6 +93,24 @@ except Exception as e:
     print(f"❌ Portfolio Manager yüklenemedi: {e}")
     portfolio_manager = None
 
+# Initialize Financial Calendar
+try:
+    from financial_calendar import FinancialCalendar
+    financial_calendar = FinancialCalendar()
+    print("✅ Financial Calendar başarıyla yüklendi")
+except Exception as e:
+    print(f"❌ Financial Calendar yüklenemedi: {e}")
+    financial_calendar = None
+
+# Initialize Financial Alert System
+try:
+    from financial_alerts import FinancialAlertSystem
+    financial_alert_system = FinancialAlertSystem()
+    print("✅ Financial Alert System başarıyla yüklendi")
+except Exception as e:
+    print(f"❌ Financial Alert System yüklenemedi: {e}")
+    financial_alert_system = None
+
 # Sohbet geçmişi yönetimi
 def create_new_session():
     """Yeni sohbet oturumu oluştur"""
@@ -369,6 +387,99 @@ def get_stock_data(symbol='KCHOL.IS', days=300):
         return None
 
 # Tahmin fonksiyonu
+def create_model_explanation(X, features, predicted_price, current_price):
+    """Model tahminini açıklayan basit analiz (SHAP olmadan)"""
+    try:
+        # Özellik değerlerini al
+        feature_values = X[0] if len(X.shape) > 1 else X
+        
+        # Özellik katkılarını hesapla (basit yaklaşım)
+        explanations = []
+        
+        # Fiyat verileri analizi
+        close_price = feature_values[features.index('close')]
+        high_price = feature_values[features.index('high')]
+        low_price = feature_values[features.index('low')]
+        open_price = feature_values[features.index('open')]
+        volume = feature_values[features.index('volume')]
+        
+        # Teknik göstergeler
+        sma200 = feature_values[features.index('SMA200')]
+        rsi = feature_values[features.index('RSI')]
+        atr = feature_values[features.index('ATR')]
+        bbwidth = feature_values[features.index('BBWidth')]
+        williams = feature_values[features.index('Williams')]
+        
+        # Fiyat pozisyonu analizi
+        if close_price > sma200:
+            explanations.append(f"Kapanış fiyatı ({close_price:.2f} TL) 200 günlük ortalamanın ({sma200:.2f} TL) üzerinde - Yükseliş trendi")
+        else:
+            explanations.append(f"Kapanış fiyatı ({close_price:.2f} TL) 200 günlük ortalamanın ({sma200:.2f} TL) altında - Düşüş trendi")
+        
+        # RSI analizi
+        if rsi > 70:
+            explanations.append(f"RSI ({rsi:.1f}) aşırı alım bölgesinde - Düşüş riski")
+        elif rsi < 30:
+            explanations.append(f"RSI ({rsi:.1f}) aşırı satım bölgesinde - Yükseliş fırsatı")
+        else:
+            explanations.append(f"RSI ({rsi:.1f}) nötr bölgede - Trend devam edebilir")
+        
+        # Volatilite analizi
+        if atr > 5:
+            explanations.append(f"Yüksek volatilite (ATR: {atr:.2f}) - Fiyat hareketleri büyük olabilir")
+        else:
+            explanations.append(f"Düşük volatilite (ATR: {atr:.2f}) - Fiyat hareketleri sınırlı olabilir")
+        
+        # Bollinger Bant analizi
+        if bbwidth > 0.2:
+            explanations.append(f"Geniş Bollinger Bantları ({bbwidth:.3f}) - Volatilite artıyor")
+        else:
+            explanations.append(f"Dar Bollinger Bantları ({bbwidth:.3f}) - Volatilite azalıyor")
+        
+        # Williams %R analizi
+        if williams < -80:
+            explanations.append(f"Williams %R ({williams:.1f}) aşırı satım - Yükseliş sinyali")
+        elif williams > -20:
+            explanations.append(f"Williams %R ({williams:.1f}) aşırı alım - Düşüş sinyali")
+        else:
+            explanations.append(f"Williams %R ({williams:.1f}) nötr bölge")
+        
+        # Hacim analizi
+        avg_volume = volume / 1000000  # Milyon cinsinden
+        if avg_volume > 10:
+            explanations.append(f"Yüksek işlem hacmi ({avg_volume:.1f}M) - Güçlü trend")
+        else:
+            explanations.append(f"Düşük işlem hacmi ({avg_volume:.1f}M) - Zayıf trend")
+        
+        # Tahmin yönü analizi
+        if predicted_price > current_price:
+            trend_direction = "YÜKSELİŞ"
+            confidence = "Yüksek" if abs(predicted_price - current_price) > 5 else "Orta"
+        else:
+            trend_direction = "DÜŞÜŞ"
+            confidence = "Yüksek" if abs(predicted_price - current_price) > 5 else "Orta"
+        
+        return {
+            'trend_direction': trend_direction,
+            'confidence': confidence,
+            'explanations': explanations,
+            'key_factors': {
+                'price_vs_sma200': "Yukarı" if close_price > sma200 else "Aşağı",
+                'rsi_signal': "Aşırı alım" if rsi > 70 else "Aşırı satım" if rsi < 30 else "Nötr",
+                'volatility': "Yüksek" if atr > 5 else "Düşük",
+                'volume_strength': "Güçlü" if avg_volume > 10 else "Zayıf"
+            }
+        }
+        
+    except Exception as e:
+        print(f"Model açıklama hatası: {e}")
+        return {
+            'trend_direction': "Belirsiz",
+            'confidence': "Düşük",
+            'explanations': ["Model açıklaması oluşturulamadı"],
+            'key_factors': {}
+        }
+
 def predict_price(model, df):
     try:
         print(f"Tahmin fonksiyonu başladı. Veri boyutu: {len(df) if df is not None else 'None'}")
@@ -412,12 +523,16 @@ def predict_price(model, df):
             while tomorrow.weekday() >= 5:
                 tomorrow = tomorrow + timedelta(days=1)
         
+        # Model açıklaması oluştur (SHAP olmadan)
+        model_explanation = create_model_explanation(X, features, prediction, current_price)
+        
         result = {
             'current_price': float(round(current_price, 2)),
             'predicted_price': float(round(prediction, 2)),
             'change': float(round(change, 2)),
             'change_percent': float(round(change_percent, 2)),
-            'prediction_date': tomorrow.strftime('%Y-%m-%d')
+            'prediction_date': tomorrow.strftime('%Y-%m-%d'),
+            'model_explanation': model_explanation
         }
         
         print(f"Tahmin sonucu: {result}")
@@ -752,9 +867,17 @@ def chat():
         message = data.get('message', '').lower()
         original_message = data.get('message', '')  # Orijinal mesajı koru
         
-        # Mevcut oturumu al
-        current_session = get_current_session()
-        session_id = current_session['id']
+        # Session ID'yi request'ten al veya mevcut oturumu kullan
+        requested_session_id = data.get('session_id')
+        print(f"Requested session_id: {requested_session_id}")
+        if requested_session_id:
+            session_id = requested_session_id
+            print(f"Using requested session_id: {session_id}")
+        else:
+            # Mevcut oturumu al
+            current_session = get_current_session()
+            session_id = current_session['id']
+            print(f"Using current session_id: {session_id}")
         
         # Kullanıcı mesajını oturuma ekle
         add_message_to_session(session_id, 'user', original_message)
@@ -791,6 +914,182 @@ def chat():
                         })
                 except Exception as e:
                     print(f"Finansal eğitim hatası: {e}")
+        
+        # Finansal takvim sorguları (alarm kurma olmadan)
+        if (any(word in message for word in ['ne zaman', 'tarih', 'bilanço', 'genel kurul', 'temettü', 'takvim', 'olay']) and 
+            any(word in message.lower() for word in ['thyao', 'kchol', 'garan', 'akbnk', 'asels', 'sasa', 'eregl', 'isctr', 'bimas', 'alark', 'tuprs', 'pgsus', 'krdmd', 'tavhl', 'doas', 'toaso', 'froto', 'vestl', 'yapi', 'qnbfb', 'halkb', 'vakbn', 'sise', 'kervn']) and
+            not any(word in message.lower() for word in ['uyar', 'alarm', 'hatırlat', 'bildir'])):
+            # Finansal takvim sorgusu
+            if financial_calendar:
+                try:
+                    # Şirket sembolünü bul
+                    symbols = ['thyao', 'kchol', 'garan', 'akbnk', 'asels', 'sasa', 'eregl', 'isctr', 'bimas', 'alark', 'tuprs', 'pgsus', 'krdmd', 'tavhl', 'doas', 'toaso', 'froto', 'vestl', 'yapi', 'qnbfb', 'halkb', 'vakbn', 'sise', 'kervn']
+                    found_symbol = None
+                    for symbol in symbols:
+                        if symbol in message.lower():
+                            found_symbol = symbol.upper()
+                            break
+                    
+                    if found_symbol:
+                        company_events = financial_calendar.get_company_events(found_symbol)
+                        if company_events:
+                            response = f"{company_events['company_name']} ({found_symbol}) Finansal Takvimi\n\n"
+                            
+                            # Olay türüne göre filtrele
+                            event_types = ['bilanço', 'genel_kurul', 'temettü']
+                            filtered_events = []
+                            
+                            for event in company_events['events']:
+                                if any(event_type in message.lower() for event_type in event_types):
+                                    filtered_events.append(event)
+                            
+                            if not filtered_events:
+                                filtered_events = company_events['events']  # Tüm olayları göster
+                            
+                            for event in filtered_events:
+                                status_text = "Tamamlandı" if event['status'] == 'tamamlandı' else "Bekliyor"
+                                response += f"{event['type'].title()} - {event['date']} ({status_text})\n"
+                                response += f"   {event['description']}\n"
+                                response += f"   Kaynak: {event['source']}\n\n"
+                            
+                            # Alarm kurma önerisi ekle
+                            if any(word in message.lower() for word in ['uyar', 'alarm', 'hatırlat', 'bildir']):
+                                response += f"\n\nAlarm kurmak ister misiniz? '{found_symbol} bilançosu için 1 gün önce uyar' şeklinde yazabilirsiniz."
+                            
+                            add_message_to_session(session_id, 'bot', response, 'financial_calendar', {'company': found_symbol, 'events': company_events})
+                            return jsonify({
+                                'response': response,
+                                'type': 'financial_calendar',
+                                'data': {'company': found_symbol, 'events': company_events},
+                                'session_id': session_id
+                            })
+                        else:
+                            response = f"{found_symbol} için finansal takvim bilgisi bulunamadı."
+                            add_message_to_session(session_id, 'bot', response, 'error')
+                            return jsonify({
+                                'response': response,
+                                'type': 'error',
+                                'session_id': session_id
+                            })
+                    else:
+                        response = "Hangi şirket hakkında finansal takvim bilgisi istiyorsunuz? (THYAO, KCHOL, GARAN vb.)"
+                        add_message_to_session(session_id, 'bot', response, 'text')
+                        return jsonify({
+                            'response': response,
+                            'type': 'text',
+                            'session_id': session_id
+                        })
+                except Exception as e:
+                    print(f"Finansal takvim hatası: {e}")
+                    response = "Finansal takvim bilgisi alınırken bir hata oluştu."
+                    add_message_to_session(session_id, 'bot', response, 'error')
+                    return jsonify({
+                        'response': response,
+                        'type': 'error',
+                        'session_id': session_id
+                    })
+        
+        # Finansal alarm kurma sorguları
+        if any(word in message.lower() for word in ['uyar', 'alarm', 'hatırlat', 'bildir']) and any(word in message.lower() for word in ['thyao', 'kchol', 'garan', 'akbnk', 'asels', 'sasa', 'eregl', 'isctr', 'bimas', 'alark', 'tuprs', 'pgsus', 'krdmd', 'tavhl', 'doas', 'toaso', 'froto', 'vestl', 'yapi', 'qnbfb', 'halkb', 'vakbn', 'sise', 'kervn']):
+            print(f"Alarm kurma sorgusu tespit edildi. Session ID: {session_id}")
+            if financial_alert_system and financial_calendar:
+                try:
+                    # Şirket sembolünü bul
+                    symbols = ['thyao', 'kchol', 'garan', 'akbnk', 'asels', 'sasa', 'eregl', 'isctr', 'bimas', 'alark', 'tuprs', 'pgsus', 'krdmd', 'tavhl', 'doas', 'toaso', 'froto', 'vestl', 'yapi', 'qnbfb', 'halkb', 'vakbn', 'sise', 'kervn']
+                    found_symbol = None
+                    for symbol in symbols:
+                        if symbol in message.lower():
+                            found_symbol = symbol.upper()
+                            break
+                    
+                    if found_symbol:
+                        # Kaç gün önce uyarılacağını belirle
+                        days_before = 1  # Varsayılan
+                        if '1 gün' in message or 'bir gün' in message:
+                            days_before = 1
+                        elif '2 gün' in message or 'iki gün' in message:
+                            days_before = 2
+                        elif '3 gün' in message or 'üç gün' in message:
+                            days_before = 3
+                        elif '1 hafta' in message or 'bir hafta' in message:
+                            days_before = 7
+                        
+                        # Şirket olaylarını al
+                        company_events = financial_calendar.get_company_events(found_symbol)
+                        if company_events and company_events['events']:
+                            # Bekleyen olaylar için alarm kur
+                            pending_events = [e for e in company_events['events'] if e['status'] == 'bekliyor']
+                            
+                            if pending_events:
+                                # Kullanıcı ID'si (şimdilik session ID kullanıyoruz)
+                                user_id = f"user_{session_id}"
+                                
+                                # Alarm kur
+                                alert_result = financial_alert_system.create_alert_from_calendar(
+                                    user_id=user_id,
+                                    symbol=found_symbol,
+                                    calendar_events=pending_events,
+                                    days_before=days_before
+                                )
+                                
+                                if alert_result['success']:
+                                    response = f"{found_symbol} için {alert_result['created_count']} alarm kuruldu.\n\n"
+                                    response += f"Alarmlar {days_before} gün önce tetiklenecek.\n\n"
+                                    
+                                    for event in pending_events:
+                                        response += f"{event['type'].title()} - {event['date']}\n"
+                                        response += f"   {event['description']}\n\n"
+                                    
+                                    response += "Alarmlarınızı 'Alarmlarım' menüsünden takip edebilirsiniz."
+                                    
+                                    add_message_to_session(session_id, 'bot', response, 'financial_alert', alert_result)
+                                    return jsonify({
+                                        'response': response,
+                                        'type': 'financial_alert',
+                                        'data': alert_result,
+                                        'session_id': session_id
+                                    })
+                                else:
+                                    response = f"Alarm kurulurken hata oluştu: {alert_result.get('errors', [])}"
+                                    add_message_to_session(session_id, 'bot', response, 'error')
+                                    return jsonify({
+                                        'response': response,
+                                        'type': 'error',
+                                        'session_id': session_id
+                                    })
+                            else:
+                                response = f"{found_symbol} için bekleyen finansal olay bulunamadı."
+                                add_message_to_session(session_id, 'bot', response, 'text')
+                                return jsonify({
+                                    'response': response,
+                                    'type': 'text',
+                                    'session_id': session_id
+                                })
+                        else:
+                            response = f"{found_symbol} için finansal takvim bilgisi bulunamadı."
+                            add_message_to_session(session_id, 'bot', response, 'error')
+                            return jsonify({
+                                'response': response,
+                                'type': 'error',
+                                'session_id': session_id
+                            })
+                    else:
+                        response = "Hangi şirket için alarm kurmak istiyorsunuz? (THYAO, KCHOL, GARAN vb.)"
+                        add_message_to_session(session_id, 'bot', response, 'text')
+                        return jsonify({
+                            'response': response,
+                            'type': 'text',
+                            'session_id': session_id
+                        })
+                except Exception as e:
+                    print(f"Finansal alarm hatası: {e}")
+                    response = "Alarm kurulurken bir hata oluştu."
+                    add_message_to_session(session_id, 'bot', response, 'error')
+                    return jsonify({
+                        'response': response,
+                        'type': 'error',
+                        'session_id': session_id
+                    })
         
         # Teknik analiz soruları - sadece belirli hisse için
         if any(word in message for word in ['teknik analiz', 'teknik', 'grafik', 'indikatör', 'rsi', 'macd', 'bollinger', 'sma', 'hacim', 'fiyat']) and not any(word in message for word in ['nedir', 'ne demek', 'açıkla', 'anlat']) and (any(word in message.lower() for word in ['kchol', 'koç', 'thyao', 'garan', 'akbnk', 'asels', 'sasa', 'eregl', 'isctr', 'bimas', 'alark', 'tuprs', 'pgsus', 'krdmd', 'tavhl', 'doas', 'toaso', 'froto', 'vestl', 'yapi', 'qnbfb', 'halkb', 'vakbn', 'sise', 'kervn']) or any(word in message.lower() for word in ['teknik analiz yap', 'rsi analizi', 'macd analizi', 'bollinger analizi', 'sma analizi', 'hacim analizi', 'fiyat analizi'])):
@@ -1060,11 +1359,30 @@ Not: Bu öneriler teknik analiz sonuçlarına dayalıdır. Yatırım kararı ver
                         
                         # Basit yanıt oluştur
                         trend_text = "Yükseliş bekleniyor!" if result['change'] > 0 else "Düşüş bekleniyor!" if result['change'] < 0 else "Fiyat sabit kalabilir"
+                        
+                        # Model açıklamasını ekle
+                        model_explanation = result.get('model_explanation', {})
+                        explanation_text = ""
+                        if model_explanation:
+                            explanation_text = f"""
+
+🔍 MODEL AÇIKLAMASI
+
+Trend Yönü: {model_explanation.get('trend_direction', 'Belirsiz')}
+Güven Seviyesi: {model_explanation.get('confidence', 'Düşük')}
+
+Ana Faktörler:
+"""
+                            for explanation in model_explanation.get('explanations', [])[:5]:  # İlk 5 açıklama
+                                explanation_text += f"• {explanation}\n"
+                        
                         response = f"""KCHOL Hisse Senedi Fiyat Tahmini
 
 Mevcut durumda KCHOL hisse senedi {result['current_price']} TL seviyesinde işlem görüyor.
 
 Teknik analiz sonuçlarına göre, KCHOL hisse senedinin {result['predicted_price']} TL seviyesine {result['change']:+.2f} TL ({result['change_percent']:+.2f}%) değişimle ulaşması bekleniyor. {trend_text}
+
+{explanation_text}
 
 {news_insights}
 
@@ -1087,11 +1405,29 @@ Yatırım kararı vermeden önce risk yönetimi yapmanızı ve portföyünüzü 
                     
                     trend_text = "Yükseliş bekleniyor!" if final_result['change'] > 0 else "Düşüş bekleniyor!" if final_result['change'] < 0 else "Fiyat sabit kalabilir"
                     
+                    # Model açıklamasını ekle
+                    model_explanation = result.get('model_explanation', {})
+                    explanation_text = ""
+                    if model_explanation:
+                        explanation_text = f"""
+
+🔍 MODEL AÇIKLAMASI
+
+Trend Yönü: {model_explanation.get('trend_direction', 'Belirsiz')}
+Güven Seviyesi: {model_explanation.get('confidence', 'Düşük')}
+
+Ana Faktörler:
+"""
+                        for explanation in model_explanation.get('explanations', [])[:5]:  # İlk 5 açıklama
+                            explanation_text += f"• {explanation}\n"
+                    
                     response = f"""KCHOL Hisse Senedi Fiyat Tahmini
 
 Mevcut durumda KCHOL hisse senedi {result['current_price']} TL seviyesinde işlem görüyor.
 
 Teknik analiz sonuçlarına göre, KCHOL hisse senedinin {final_result['predicted_price']} TL seviyesine {final_result['change']:+.2f} TL ({final_result['change_percent']:+.2f}%) değişimle ulaşması bekleniyor. {trend_text}
+
+{explanation_text}
 
 {news_insights}
 
@@ -1117,11 +1453,29 @@ Yatırım kararı vermeden önce risk yönetimi yapmanızı ve portföyünüzü 
                 
                 trend_text = "Yükseliş bekleniyor!" if final_result['change'] > 0 else "Düşüş bekleniyor!" if final_result['change'] < 0 else "Fiyat sabit kalabilir"
                 
+                # Model açıklamasını ekle
+                model_explanation = result.get('model_explanation', {})
+                explanation_text = ""
+                if model_explanation:
+                    explanation_text = f"""
+
+🔍 MODEL AÇIKLAMASI
+
+Trend Yönü: {model_explanation.get('trend_direction', 'Belirsiz')}
+Güven Seviyesi: {model_explanation.get('confidence', 'Düşük')}
+
+Ana Faktörler:
+"""
+                    for explanation in model_explanation.get('explanations', [])[:5]:  # İlk 5 açıklama
+                        explanation_text += f"• {explanation}\n"
+                
                 response = f"""KCHOL Hisse Senedi Fiyat Tahmini
 
 Mevcut durumda KCHOL hisse senedi {result['current_price']} TL seviyesinde işlem görüyor.
 
 Teknik analiz sonuçlarına göre, KCHOL hisse senedinin {final_result['predicted_price']} TL seviyesine {final_result['change']:+.2f} TL ({final_result['change_percent']:+.2f}%) değişimle ulaşması bekleniyor. {trend_text}
+
+{explanation_text}
 
 {news_insights}
 
@@ -1504,38 +1858,72 @@ Not: Bu öneriler genel bilgi amaçlıdır. Yatırım kararı vermeden önce pro
                 })
             
         else:
-            # Document RAG Agent ile profesyonel yanıtlar
+            # Genel sorulara Gemini'den cevap al
             try:
-                if document_rag_agent:
-                    print(f"Document RAG Agent'a gonderilen mesaj: {original_message}")
-                    rag_response = document_rag_agent.process_query(original_message)
-                    print(f"Document RAG Agent'dan gelen yanit: {rag_response}")
-                    add_message_to_session(session_id, 'bot', rag_response, 'ai_response')
-                    return jsonify({
-                        'response': rag_response,
-                        'type': 'ai_response',
-                        'session_id': session_id
-                    })
-                else:
-                    # Fallback to basic Gemini
-                    print(f"Gemini'ye gonderilen mesaj: {original_message}")
-                    gemini_response = get_gemini_response(original_message)
-                    print(f"Gemini'den gelen yanit: {gemini_response}")
-                    add_message_to_session(session_id, 'bot', gemini_response, 'ai_response')
-                    return jsonify({
-                        'response': gemini_response,
-                        'type': 'ai_response',
-                        'session_id': session_id
-                    })
-            except Exception as error:
-                print(f"AI yanit hatasi: {error}")
-                error_response = 'Anlamadigim bir soru sordunuz. Fiyat tahmini yapmak icin "fiyat tahmini yap" veya "ne olacak" diyebilirsiniz. Yardim icin "yardim" yazabilirsiniz.'
-                add_message_to_session(session_id, 'bot', error_response, 'unknown')
+                print(f"Genel soru Gemini'ye gönderiliyor: {original_message}")
+                
+                # Gemini prompt'u hazırla
+                gemini_prompt = f"""
+Sen bir finansal asistan ve yatırım danışmanısın. Kullanıcının sorusuna Türkçe olarak, profesyonel ve anlaşılır bir şekilde cevap ver.
+
+Kullanıcı sorusu: {original_message}
+
+Yanıt kuralları:
+- Sadece Türkçe yanıt ver
+- Emoji kullanma
+- Düzyazı şeklinde yaz
+- Finansal konularda güvenilir bilgi ver
+- Gerektiğinde örnekler kullan
+- Risk uyarıları ekle
+- Maksimum 3-4 paragraf yaz
+- Eğer yatırım tavsiyesi ise "Bu bir yatırım tavsiyesi değildir" uyarısı ekle
+
+Eğer soru finansal değilse, genel bilgi ver ve finansal konulara yönlendir.
+"""
+                
+                gemini_response = get_gemini_response(gemini_prompt)
+                print(f"Gemini'den gelen yanit: {gemini_response}")
+                
+                add_message_to_session(session_id, 'bot', gemini_response, 'ai_response')
                 return jsonify({
-                    'response': error_response,
-                    'type': 'unknown',
+                    'response': gemini_response,
+                    'type': 'ai_response',
                     'session_id': session_id
                 })
+                
+            except Exception as error:
+                print(f"Gemini yanit hatasi: {error}")
+                
+                # Fallback to Document RAG Agent
+                try:
+                    if document_rag_agent:
+                        print(f"Document RAG Agent'a gonderilen mesaj: {original_message}")
+                        rag_response = document_rag_agent.process_query(original_message)
+                        print(f"Document RAG Agent'dan gelen yanit: {rag_response}")
+                        add_message_to_session(session_id, 'bot', rag_response, 'ai_response')
+                        return jsonify({
+                            'response': rag_response,
+                            'type': 'ai_response',
+                            'session_id': session_id
+                        })
+                    else:
+                        # Final fallback
+                        error_response = 'Üzgünüm, şu anda size yardımcı olamıyorum. Lütfen daha sonra tekrar deneyin.'
+                        add_message_to_session(session_id, 'bot', error_response, 'unknown')
+                        return jsonify({
+                            'response': error_response,
+                            'type': 'unknown',
+                            'session_id': session_id
+                        })
+                except Exception as rag_error:
+                    print(f"Document RAG Agent hatasi: {rag_error}")
+                    error_response = 'Üzgünüm, şu anda size yardımcı olamıyorum. Lütfen daha sonra tekrar deneyin.'
+                    add_message_to_session(session_id, 'bot', error_response, 'unknown')
+                    return jsonify({
+                        'response': error_response,
+                        'type': 'unknown',
+                        'session_id': session_id
+                    })
             
     except Exception as e:
         return jsonify({
@@ -1894,6 +2282,592 @@ def calculate_portfolio_value():
         return jsonify({
             'success': False,
             'message': f'Portföy hesaplama hatası: {str(e)}'
+        }), 500
+
+# Finansal Takvim API Endpoint'leri
+@app.route('/api/calendar', methods=['GET'])
+def get_financial_calendar():
+    """Finansal takvim verilerini getir"""
+    try:
+        if not financial_calendar:
+            return jsonify({
+                'success': False,
+                'message': 'Finansal takvim kullanılamıyor'
+            }), 500
+        
+        # Tüm şirketleri getir
+        companies = financial_calendar.get_companies()
+        calendar_data = {}
+        
+        for company in companies:
+            company_events = financial_calendar.get_company_events(company)
+            if company_events:
+                calendar_data[company] = company_events
+        
+        return jsonify({
+            'success': True,
+            'data': calendar_data
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Finansal takvim hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/calendar/company/<symbol>', methods=['GET'])
+def get_company_calendar(symbol):
+    """Belirli şirketin finansal takvimini getir"""
+    try:
+        if not financial_calendar:
+            return jsonify({
+                'success': False,
+                'message': 'Finansal takvim kullanılamıyor'
+            }), 500
+        
+        company_events = financial_calendar.get_company_events(symbol.upper())
+        
+        if not company_events:
+            return jsonify({
+                'success': False,
+                'message': f'{symbol} için finansal takvim bulunamadı'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'data': company_events
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Şirket takvimi hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/calendar/upcoming', methods=['GET'])
+def get_upcoming_events():
+    """Yaklaşan finansal olayları getir"""
+    try:
+        if not financial_calendar:
+            return jsonify({
+                'success': False,
+                'message': 'Finansal takvim kullanılamıyor'
+            }), 500
+        
+        days = request.args.get('days', 30, type=int)
+        upcoming_events = financial_calendar.get_upcoming_events(days)
+        
+        return jsonify({
+            'success': True,
+            'data': upcoming_events
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Yaklaşan olaylar hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/calendar/search', methods=['POST'])
+def search_calendar_events():
+    """Finansal takvimde arama yap"""
+    try:
+        if not financial_calendar:
+            return jsonify({
+                'success': False,
+                'message': 'Finansal takvim kullanılamıyor'
+            }), 500
+        
+        data = request.get_json()
+        query = data.get('query', '')
+        
+        if not query:
+            return jsonify({
+                'success': False,
+                'message': 'Arama sorgusu gerekli'
+            }), 400
+        
+        search_results = financial_calendar.search_events(query)
+        
+        return jsonify({
+            'success': True,
+            'data': search_results
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Arama hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/calendar/add', methods=['POST'])
+def add_calendar_event():
+    """Finansal takvime yeni olay ekle"""
+    try:
+        if not financial_calendar:
+            return jsonify({
+                'success': False,
+                'message': 'Finansal takvim kullanılamıyor'
+            }), 500
+        
+        data = request.get_json()
+        symbol = data.get('symbol', '').upper()
+        event_type = data.get('type', '')
+        event_date = data.get('date', '')
+        description = data.get('description', '')
+        source = data.get('source', 'KAP')
+        status = data.get('status', 'bekliyor')
+        
+        if not all([symbol, event_type, event_date, description]):
+            return jsonify({
+                'success': False,
+                'message': 'symbol, type, date ve description alanları gerekli'
+            }), 400
+        
+        # Tarih formatını kontrol et
+        try:
+            datetime.strptime(event_date, "%Y-%m-%d")
+        except ValueError:
+            return jsonify({
+                'success': False,
+                'message': 'Geçersiz tarih formatı. YYYY-MM-DD formatında olmalı'
+            }), 400
+        
+        result = financial_calendar.add_event(
+            symbol=symbol,
+            event_type=event_type,
+            event_date=event_date,
+            description=description,
+            source=source,
+            status=status
+        )
+        
+        if result:
+            return jsonify({
+                'success': True,
+                'message': 'Olay başarıyla eklendi'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Olay eklenemedi'
+            }), 500
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Olay ekleme hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/calendar/import', methods=['POST'])
+def import_calendar_csv():
+    """CSV dosyasından finansal takvim verisi yükle"""
+    try:
+        if not financial_calendar:
+            return jsonify({
+                'success': False,
+                'message': 'Finansal takvim kullanılamıyor'
+            }), 500
+        
+        if 'file' not in request.files:
+            return jsonify({
+                'success': False,
+                'message': 'CSV dosyası gerekli'
+            }), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({
+                'success': False,
+                'message': 'Dosya seçilmedi'
+            }), 400
+        
+        if not file.filename.endswith('.csv'):
+            return jsonify({
+                'success': False,
+                'message': 'Sadece CSV dosyaları kabul edilir'
+            }), 400
+        
+        # Geçici dosya olarak kaydet
+        temp_file = f"temp_calendar_{int(time.time())}.csv"
+        file.save(temp_file)
+        
+        try:
+            result = financial_calendar.import_from_csv(temp_file)
+            if result:
+                return jsonify({
+                    'success': True,
+                    'message': 'CSV dosyası başarıyla yüklendi'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'CSV yükleme hatası'
+                }), 500
+        finally:
+            # Geçici dosyayı sil
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'CSV yükleme hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/calendar/export', methods=['GET'])
+def export_calendar_csv():
+    """Finansal takvim verilerini CSV olarak dışa aktar"""
+    try:
+        if not financial_calendar:
+            return jsonify({
+                'success': False,
+                'message': 'Finansal takvim kullanılamıyor'
+            }), 500
+        
+        # Geçici dosya oluştur
+        temp_file = f"financial_calendar_{int(time.time())}.csv"
+        
+        result = financial_calendar.export_to_csv(temp_file)
+        if result:
+            return send_file(
+                temp_file,
+                as_attachment=True,
+                download_name=f"financial_calendar_{datetime.now().strftime('%Y%m%d')}.csv",
+                mimetype='text/csv'
+            )
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'CSV dışa aktarma hatası'
+            }), 500
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'CSV dışa aktarma hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/calendar/update/<symbol>', methods=['POST'])
+def update_company_calendar(symbol):
+    """Belirli şirketin finansal takvimini güncelle (scraping)"""
+    try:
+        if not financial_calendar:
+            return jsonify({
+                'success': False,
+                'message': 'Finansal takvim kullanılamıyor'
+            }), 500
+        
+        symbol = symbol.upper()
+        force_update = request.args.get('force', 'false').lower() == 'true'
+        
+        print(f"{symbol} için finansal takvim güncelleniyor...")
+        result = financial_calendar.update_company_events(symbol, force_update)
+        
+        if result:
+            # Güncel veriyi getir
+            company_data = financial_calendar.get_company_events(symbol, auto_update=False)
+            return jsonify({
+                'success': True,
+                'message': f'{symbol} finansal takvimi güncellendi',
+                'data': company_data
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'{symbol} güncellenemedi'
+            }), 500
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Güncelleme hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/calendar/update-all', methods=['POST'])
+def update_all_companies_calendar():
+    """Tüm şirketlerin finansal takvimini güncelle (scraping)"""
+    try:
+        if not financial_calendar:
+            return jsonify({
+                'success': False,
+                'message': 'Finansal takvim kullanılamıyor'
+            }), 500
+        
+        # Hangi şirketleri güncelleyeceğimizi al
+        data = request.get_json() or {}
+        symbols = data.get('symbols', ['THYAO', 'KCHOL', 'GARAN', 'AKBNK', 'ISCTR', 'SAHOL', 'ASELS', 'EREGL'])
+        force_update = data.get('force', False)
+        
+        print(f"Tüm şirketler için finansal takvim güncelleniyor...")
+        results = financial_calendar.update_all_companies(symbols)
+        
+        # Başarılı güncellemeleri say
+        successful_updates = sum(1 for success in results.values() if success)
+        total_companies = len(symbols)
+        
+        return jsonify({
+            'success': True,
+            'message': f'{successful_updates}/{total_companies} şirket güncellendi',
+            'data': {
+                'results': results,
+                'successful_updates': successful_updates,
+                'total_companies': total_companies
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Toplu güncelleme hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/calendar/summary', methods=['GET'])
+def get_calendar_summary():
+    """Finansal takvim özeti getir"""
+    try:
+        if not financial_calendar:
+            return jsonify({
+                'success': False,
+                'message': 'Finansal takvim kullanılamıyor'
+            }), 500
+        
+        summary = financial_calendar.get_calendar_summary()
+        return jsonify({
+            'success': True,
+            'data': summary
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Özet getirme hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/calendar/search/<query>', methods=['GET'])
+def search_calendar_by_query(query):
+    """Finansal takvimde arama yap"""
+    try:
+        if not financial_calendar:
+            return jsonify({
+                'success': False,
+                'message': 'Finansal takvim kullanılamıyor'
+            }), 500
+        
+        results = financial_calendar.search_events(query)
+        return jsonify({
+            'success': True,
+            'data': results,
+            'query': query,
+            'result_count': len(results)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Arama hatası: {str(e)}'
+        }), 500
+
+# Finansal Alarm API Endpoint'leri
+@app.route('/api/alerts', methods=['GET'])
+def get_user_alerts():
+    """Kullanıcının alarmlarını getir"""
+    try:
+        if not financial_alert_system:
+            return jsonify({
+                'success': False,
+                'message': 'Alarm sistemi kullanılamıyor'
+            }), 500
+        
+        # Session ID'den user ID oluştur (şimdilik)
+        session_id = request.args.get('session_id', 'default')
+        user_id = f"user_{session_id}"
+        
+        active_alerts = financial_alert_system.get_user_alerts(user_id, 'active')
+        triggered_alerts = financial_alert_system.get_user_alerts(user_id, 'triggered')
+        cancelled_alerts = financial_alert_system.get_user_alerts(user_id, 'cancelled')
+        
+        # Dataclass'ları dict'e çevir
+        def alert_to_dict(alert):
+            return {
+                'id': alert.id,
+                'symbol': alert.symbol,
+                'event_type': alert.event_type,
+                'event_date': alert.event_date,
+                'alert_date': alert.alert_date,
+                'description': alert.description,
+                'status': alert.status,
+                'created_at': alert.created_at,
+                'triggered_at': alert.triggered_at
+            }
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'active': [alert_to_dict(alert) for alert in active_alerts],
+                'triggered': [alert_to_dict(alert) for alert in triggered_alerts],
+                'cancelled': [alert_to_dict(alert) for alert in cancelled_alerts]
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Alarm getirme hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/alerts/summary', methods=['GET'])
+def get_alerts_summary():
+    """Kullanıcının alarm özetini getir"""
+    try:
+        if not financial_alert_system:
+            return jsonify({
+                'success': False,
+                'message': 'Alarm sistemi kullanılamıyor'
+            }), 500
+        
+        session_id = request.args.get('session_id', 'default')
+        user_id = f"user_{session_id}"
+        
+        summary = financial_alert_system.get_alert_summary(user_id)
+        
+        # Next alert'i dict'e çevir
+        if summary['next_alert']:
+            summary['next_alert'] = {
+                'id': summary['next_alert'].id,
+                'symbol': summary['next_alert'].symbol,
+                'event_type': summary['next_alert'].event_type,
+                'event_date': summary['next_alert'].event_date,
+                'alert_date': summary['next_alert'].alert_date,
+                'description': summary['next_alert'].description
+            }
+        
+        return jsonify({
+            'success': True,
+            'data': summary
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Alarm özeti getirme hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/alerts/cancel/<int:alert_id>', methods=['POST'])
+def cancel_alert(alert_id):
+    """Alarmı iptal et"""
+    try:
+        if not financial_alert_system:
+            return jsonify({
+                'success': False,
+                'message': 'Alarm sistemi kullanılamıyor'
+            }), 500
+        
+        data = request.get_json() or {}
+        session_id = data.get('session_id', 'default')
+        user_id = f"user_{session_id}"
+        
+        success = financial_alert_system.cancel_alert(alert_id, user_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Alarm iptal edildi'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Alarm iptal edilemedi'
+            }), 500
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Alarm iptal hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/alerts/delete/<int:alert_id>', methods=['DELETE'])
+def delete_alert(alert_id):
+    """Alarmı sil"""
+    try:
+        if not financial_alert_system:
+            return jsonify({
+                'success': False,
+                'message': 'Alarm sistemi kullanılamıyor'
+            }), 500
+        
+        data = request.get_json() or {}
+        session_id = data.get('session_id', 'default')
+        user_id = f"user_{session_id}"
+        
+        success = financial_alert_system.delete_alert(alert_id, user_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Alarm silindi'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Alarm silinemedi'
+            }), 500
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Alarm silme hatası: {str(e)}'
+        }), 500
+
+@app.route('/api/alerts/create', methods=['POST'])
+def create_alert():
+    """Manuel alarm oluştur"""
+    try:
+        if not financial_alert_system:
+            return jsonify({
+                'success': False,
+                'message': 'Alarm sistemi kullanılamıyor'
+            }), 500
+        
+        data = request.get_json()
+        session_id = request.args.get('session_id', 'default')
+        user_id = f"user_{session_id}"
+        
+        required_fields = ['symbol', 'event_type', 'event_date', 'description']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'message': f'{field} alanı gerekli'
+                }), 400
+        
+        days_before = data.get('days_before', 1)
+        
+        result = financial_alert_system.create_alert(
+            user_id=user_id,
+            symbol=data['symbol'].upper(),
+            event_type=data['event_type'],
+            event_date=data['event_date'],
+            description=data['description'],
+            days_before=days_before
+        )
+        
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'message': result['message'],
+                'alert_id': result['alert_id']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': result['error']
+            }), 500
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Alarm oluşturma hatası: {str(e)}'
         }), 500
 
 if __name__ == '__main__':

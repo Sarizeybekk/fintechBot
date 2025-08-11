@@ -58,6 +58,12 @@
                     <button class="action-btn portfolio-btn" title="Portföy Takip" onclick="openPortfolioModal()">
                         <i class="fas fa-briefcase"></i>
                     </button>
+                    <button class="action-btn calendar-btn" title="Finansal Takvim" onclick="openCalendarModal()">
+                        <i class="fas fa-calendar-alt"></i>
+                    </button>
+                    <button class="action-btn alerts-btn" title="Alarmlarım" onclick="openAlertsModal()">
+                        <i class="fas fa-bell"></i>
+                    </button>
                     <button class="action-btn theme-btn" title="Tema Değiştir" onclick="openThemeModal()">
                         <i class="fas fa-palette"></i>
                     </button>
@@ -748,6 +754,291 @@
         </div>
     </div>
 
+    <!-- Finansal Takvim Modal -->
+    <div class="calendar-modal" id="calendarModal">
+        <div class="calendar-modal-content">
+            <div class="calendar-modal-header">
+                <h3><i class="fas fa-calendar-alt"></i> Finansal Takvim</h3>
+                <button class="close-btn" onclick="closeCalendarModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="calendar-content">
+                <div class="calendar-tabs">
+                    <button class="tab-btn active" onclick="switchCalendarTab('overview')">
+                        <i class="fas fa-eye"></i>
+                        Genel Bakış
+                    </button>
+                    <button class="tab-btn" onclick="switchCalendarTab('company')">
+                        <i class="fas fa-building"></i>
+                        Şirket Bazlı
+                    </button>
+                    <button class="tab-btn" onclick="switchCalendarTab('upcoming')">
+                        <i class="fas fa-clock"></i>
+                        Yaklaşan Olaylar
+                    </button>
+                    <button class="tab-btn" onclick="switchCalendarTab('add')">
+                        <i class="fas fa-plus"></i>
+                        Olay Ekle
+                    </button>
+                </div>
+                
+                <!-- Genel Bakış Tab -->
+                <div class="tab-content active" id="overviewTab">
+                    <div class="calendar-overview">
+                        <!-- Scraping Kontrolleri -->
+                        <div class="scraping-controls">
+                            <div class="control-group">
+                                <button class="btn btn-primary" onclick="updateAllCompanies()">
+                                    <i class="fas fa-sync-alt"></i>
+                                    Tüm Şirketleri Güncelle
+                                </button>
+                                <button class="btn btn-secondary" onclick="refreshCalendar()">
+                                    <i class="fas fa-refresh"></i>
+                                    Takvimi Yenile
+                                </button>
+                            </div>
+                            <div class="control-info">
+                                <small>Web scraping ile güncel veriler çekilir</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Takvim Özeti -->
+                        <h4><i class="fas fa-chart-bar"></i> Takvim Özeti</h4>
+                        <div class="calendar-summary" id="calendarSummary">
+                            <!-- Özet bilgiler buraya gelecek -->
+                        </div>
+                        
+                        <h4><i class="fas fa-chart-pie"></i> Şirket Dağılımı</h4>
+                        <div class="company-stats" id="companyStats">
+                            <!-- Şirket istatistikleri buraya gelecek -->
+                        </div>
+                        
+                        <h4><i class="fas fa-calendar-check"></i> Tüm Olaylar</h4>
+                        <div class="calendar-table" id="calendarTable">
+                            <!-- Takvim tablosu buraya gelecek -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Şirket Bazlı Tab -->
+                <div class="tab-content" id="companyTab">
+                    <div class="company-selector">
+                        <div class="selector-row">
+                            <div class="selector-group">
+                                <label for="companySelect">
+                                    <i class="fas fa-building"></i>
+                                    Şirket Seçin
+                                </label>
+                                <select id="companySelect" onchange="loadCompanyCalendar()">
+                                    <option value="">Şirket seçin...</option>
+                                </select>
+                            </div>
+                            <div class="selector-actions">
+                                <button class="btn btn-sm btn-primary" id="updateCompanyBtn" onclick="updateSelectedCompany()" style="display: none;">
+                                    <i class="fas fa-sync-alt"></i>
+                                    Güncelle
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="company-events" id="companyEvents">
+                        <!-- Şirket olayları buraya gelecek -->
+                    </div>
+                </div>
+                
+                <!-- Yaklaşan Olaylar Tab -->
+                <div class="tab-content" id="upcomingTab">
+                    <div class="upcoming-controls">
+                        <label for="upcomingDays">
+                            <i class="fas fa-calendar-day"></i>
+                            Gün Sayısı
+                        </label>
+                        <select id="upcomingDays" onchange="loadUpcomingEvents()">
+                            <option value="7">7 gün</option>
+                            <option value="30" selected>30 gün</option>
+                            <option value="60">60 gün</option>
+                            <option value="90">90 gün</option>
+                        </select>
+                    </div>
+                    
+                    <div class="upcoming-events" id="upcomingEvents">
+                        <!-- Yaklaşan olaylar buraya gelecek -->
+                    </div>
+                </div>
+                
+                <!-- Olay Ekleme Tab -->
+                <div class="tab-content" id="addTab">
+                    <div class="event-form">
+                        <div class="form-group">
+                            <label for="eventSymbol">
+                                <i class="fas fa-building"></i>
+                                Şirket Kodu
+                            </label>
+                            <input type="text" id="eventSymbol" placeholder="Örn: THYAO, KCHOL, GARAN" maxlength="10">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="eventType">
+                                <i class="fas fa-tag"></i>
+                                Olay Türü
+                            </label>
+                            <select id="eventType">
+                                <option value="bilanço">Bilanço</option>
+                                <option value="genel_kurul">Genel Kurul</option>
+                                <option value="temettü">Temettü</option>
+                                <option value="diğer">Diğer</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="eventDate">
+                                <i class="fas fa-calendar"></i>
+                                Tarih
+                            </label>
+                            <input type="date" id="eventDate">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="eventDescription">
+                                <i class="fas fa-align-left"></i>
+                                Açıklama
+                            </label>
+                            <textarea id="eventDescription" placeholder="Olay açıklaması..." rows="3"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="eventSource">
+                                <i class="fas fa-link"></i>
+                                Kaynak
+                            </label>
+                            <input type="text" id="eventSource" placeholder="Örn: KAP, Şirket" value="KAP">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="eventStatus">
+                                <i class="fas fa-info-circle"></i>
+                                Durum
+                            </label>
+                            <select id="eventStatus">
+                                <option value="bekliyor">Bekliyor</option>
+                                <option value="tamamlandı">Tamamlandı</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button class="form-btn primary" onclick="addCalendarEvent()">
+                                <i class="fas fa-plus"></i>
+                                Olay Ekle
+                            </button>
+                            <button class="form-btn secondary" onclick="resetEventForm()">
+                                <i class="fas fa-undo"></i>
+                                Sıfırla
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="calendar-actions">
+                    <button class="action-btn" onclick="importCalendarCSV()">
+                        <i class="fas fa-upload"></i>
+                        CSV Yükle
+                    </button>
+                    <button class="action-btn" onclick="exportCalendarCSV()">
+                        <i class="fas fa-download"></i>
+                        CSV İndir
+                    </button>
+                    <button class="action-btn" onclick="refreshCalendar()">
+                        <i class="fas fa-sync"></i>
+                        Yenile
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alarmlar Modal -->
+    <div class="alerts-modal" id="alertsModal">
+        <div class="alerts-modal-content">
+            <div class="alerts-modal-header">
+                <h3><i class="fas fa-bell"></i> Alarmlarım</h3>
+                <button class="close-btn" onclick="closeAlertsModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="alerts-content">
+                <div class="alerts-tabs">
+                    <button class="tab-btn active" onclick="switchAlertsTab('active')">
+                        <i class="fas fa-bell"></i>
+                        Aktif Alarmlar
+                    </button>
+                    <button class="tab-btn" onclick="switchAlertsTab('triggered')">
+                        <i class="fas fa-check-circle"></i>
+                        Tetiklenen Alarmlar
+                    </button>
+                    <button class="tab-btn" onclick="switchAlertsTab('cancelled')">
+                        <i class="fas fa-ban"></i>
+                        İptal Edilen Alarmlar
+                    </button>
+                </div>
+                
+                <!-- Aktif Alarmlar Tab -->
+                <div class="tab-content active" id="activeAlertsTab">
+                    <div class="alerts-summary">
+                        <div class="summary-card">
+                            <div class="summary-icon">
+                                <i class="fas fa-bell"></i>
+                            </div>
+                            <div class="summary-info">
+                                <h4>Aktif Alarmlar</h4>
+                                <span id="activeAlertsCount">0</span>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="summary-info">
+                                <h4>Sonraki Alarm</h4>
+                                <span id="nextAlertDate">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alerts-list" id="activeAlertsList">
+                        <!-- Aktif alarmlar buraya gelecek -->
+                    </div>
+                </div>
+                
+                <!-- Tetiklenen Alarmlar Tab -->
+                <div class="tab-content" id="triggeredAlertsTab">
+                    <div class="alerts-list" id="triggeredAlertsList">
+                        <!-- Tetiklenen alarmlar buraya gelecek -->
+                    </div>
+                </div>
+                
+                <!-- İptal Edilen Alarmlar Tab -->
+                <div class="tab-content" id="cancelledAlertsTab">
+                    <div class="alerts-list" id="cancelledAlertsList">
+                        <!-- İptal edilen alarmlar buraya gelecek -->
+                    </div>
+                </div>
+                
+                <div class="alerts-actions">
+                    <button class="action-btn" onclick="refreshAlerts()">
+                        <i class="fas fa-sync"></i>
+                        Yenile
+                    </button>
+                    <button class="action-btn" onclick="exportAlertsCSV()">
+                        <i class="fas fa-download"></i>
+                        CSV İndir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Hisse Simülasyon Modal -->
     <div class="simulation-modal" id="simulationModal">
         <div class="simulation-modal-content">
@@ -824,10 +1115,6 @@
                         <button class="example-btn" onclick="loadSimulationExample('SASA.IS', '2 ay önce', 30000)">
                             <i class="fas fa-shopping-cart"></i>
                             SASA 2 ay önce 30.000 TL
-                        </button>
-                        <button class="example-btn" onclick="loadSimulationExample('ASELS.IS', '3 ay önce', 75000)">
-                            <i class="fas fa-rocket"></i>
-                            ASELS 3 ay önce 75.000 TL
                         </button>
                         <button class="example-btn" onclick="loadSimulationExample('EREGL.IS', '1 yıl önce', 250000)">
                             <i class="fas fa-industry"></i>

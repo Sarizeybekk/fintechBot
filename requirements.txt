@@ -16,3 +16,5 @@ PyPDF2>=3.0.0
 PyMuPDF>=1.23.0
 scipy>=1.10.0 
 dateparser
+beautifulsoup4>=4.11.0
+lxml>=4.9.0

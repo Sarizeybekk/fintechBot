@@ -1,0 +1,65 @@
+{
+  "THYAO": {
+    "company_name": "THYAO",
+    "events": [
+      {
+        "type": "bilanço",
+        "date": "2025-08-31",
+        "description": "2025 Yılı 2. Çeyrek Bilanço",
+        "source": "KAP",
+        "status": "bekliyor"
+      },
+      {
+        "type": "genel_kurul",
+        "date": "2025-09-15",
+        "description": "2024 Yılı Genel Kurul Toplantısı",
+        "source": "KAP",
+        "status": "bekliyor"
+      }
+    ],
+    "last_update": "2025-08-11"
+  },
+  "KCHOL": {
+    "company_name": "KCHOL",
+    "events": [
+      {
+        "type": "bilanço",
+        "date": "2025-08-28",
+        "description": "2025 Yılı 2. Çeyrek Bilanço",
+        "source": "KAP",
+        "status": "bekliyor"
+      }
+    ],
+    "last_update": "2025-08-11"
+  },
+  "GARAN": {
+    "company_name": "GARAN",
+    "events": [],
+    "last_update": "2025-08-11"
+  },
+  "AKBNK": {
+    "company_name": "AKBNK",
+    "events": [],
+    "last_update": "2025-08-11"
+  },
+  "ISCTR": {
+    "company_name": "ISCTR",
+    "events": [],
+    "last_update": "2025-08-11"
+  },
+  "SAHOL": {
+    "company_name": "SAHOL",
+    "events": [],
+    "last_update": "2025-08-11"
+  },
+  "ASELS": {
+    "company_name": "ASELS",
+    "events": [],
+    "last_update": "2025-08-11"
+  },
+  "EREGL": {
+    "company_name": "EREGL",
+    "events": [],
+    "last_update": "2025-08-11"
+  }
+}
