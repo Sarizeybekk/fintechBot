@@ -1313,175 +1313,57 @@ Not: Bu öneriler teknik analiz sonuçlarına dayalıdır. Yatırım kararı ver
                     'session_id': session_id
                 })
             
-            # Web Search Agent ile güncel haber analizi yap
-            print("Web Search Agent ile güncel haber analizi başlatılıyor...")
-            try:
-                from web_search_agent import WebSearchAgent
-                web_agent = WebSearchAgent()
-                
-                # Kullanıcı sorusuna göre arama sorgusu oluştur
-                search_query = "KCHOL hisse senedi güncel haberler ve analiz"
-                
-                # Özel durumlar için sorgu optimizasyonu
-                if any(word in original_message.lower() for word in ['niye düştü', 'neden düştü', 'bugün niye düştü', 'bugün neden düştü']):
-                    search_query = "KCHOL hisse senedi bugün düşüş nedenleri ve güncel haberler"
-                elif any(word in original_message.lower() for word in ['niye yükseldi', 'neden yükseldi', 'bugün niye yükseldi', 'bugün neden yükseldi']):
-                    search_query = "KCHOL hisse senedi bugün yükseliş nedenleri ve güncel haberler"
-                elif any(word in original_message.lower() for word in ['yükselir', 'artar', 'çıkar']):
-                    search_query = "KCHOL hisse senedi yükseliş haberleri ve analiz"
-                elif any(word in original_message.lower() for word in ['düşer', 'iner', 'aşağı']):
-                    search_query = "KCHOL hisse senedi düşüş haberleri ve analiz"
-                
-                # Web arama ve analiz yap
-                web_analysis_result = web_agent.analyze_price_prediction_with_news(original_message, result, search_query)
-                
-                if web_analysis_result.get('success'):
-                    # Web analizi başarılı
-                    web_analysis = web_analysis_result.get('analysis', '')
-                    web_results = web_analysis_result.get('web_results', [])
-                    has_conflict = web_analysis_result.get('has_conflict', False)
-                    source_urls = web_analysis_result.get('source_urls', [])
-                    
-                    # Web analizi ile zenginleştirilmiş yanıt
-                    if web_analysis:
-                        response = web_analysis
-                        
-                        # Eğer kaynak URL'ler varsa ve analizde yoksa ekle
-                        if source_urls and "KAYNAK HABERLER" not in response:
-                            response += "\n\nKAYNAK HABERLER:\n"
-                            for url_info in source_urls[:5]:  # En iyi 5 kaynak
-                                response += f"{url_info}\n\n"
-                    else:
-                        # Fallback: Eski haber analizi
-                        news_articles = get_news_articles("Koç Holding", days=7)
-                        sentiment_analysis = analyze_news_sentiment(news_articles)
-                        news_insights = generate_news_insights(sentiment_analysis)
-                        
-                        # Basit yanıt oluştur
-                        trend_text = "Yükseliş bekleniyor!" if result['change'] > 0 else "Düşüş bekleniyor!" if result['change'] < 0 else "Fiyat sabit kalabilir"
-                        
-                        # Model açıklamasını ekle
-                        model_explanation = result.get('model_explanation', {})
-                        explanation_text = ""
-                        if model_explanation:
-                            explanation_text = f"""
+            # Sadece model tahmini ve teknik analiz ile cevap ver (web araması yapma)
+            print("Model tahmini ve teknik analiz ile yanıt oluşturuluyor...")
+            
+            # Trend metni oluştur
+            trend_text = "Yükseliş bekleniyor!" if result['change'] > 0 else "Düşüş bekleniyor!" if result['change'] < 0 else "Fiyat sabit kalabilir"
+            
+            # Model açıklamasını ekle - profesyonel paragraf formatında
+            model_explanation = result.get('model_explanation', {})
+            explanation_text = ""
+            if model_explanation:
+                explanation_text = f"""
 
-🔍 MODEL AÇIKLAMASI
+Teknik analiz sonuçlarına göre trend yönü {model_explanation.get('trend_direction', 'Belirsiz')} olarak belirlenmiştir. Güven seviyesi {model_explanation.get('confidence', 'Düşük')} olarak hesaplanmıştır.
 
-Trend Yönü: {model_explanation.get('trend_direction', 'Belirsiz')}
-Güven Seviyesi: {model_explanation.get('confidence', 'Düşük')}
-
-Ana Faktörler:
 """
-                            for explanation in model_explanation.get('explanations', [])[:5]:  # İlk 5 açıklama
-                                explanation_text += f"• {explanation}\n"
-                        
-                        response = f"""KCHOL Hisse Senedi Fiyat Tahmini
+                for explanation in model_explanation.get('explanations', [])[:3]:  # İlk 3 açıklama
+                    explanation_text += f"{explanation} "
+                
+                # Ana faktörlerin detaylarını ekle - profesyonel paragraf formatında
+                key_factors = model_explanation.get('key_factors', {})
+                if key_factors:
+                    explanation_text += f"""
 
-Mevcut durumda KCHOL hisse senedi {result['current_price']} TL seviyesinde işlem görüyor.
+Teknik göstergelerin detaylı analizi sonucunda, fiyat 200 günlük hareketli ortalamanın {key_factors.get('price_vs_sma200', 'Belirsiz')} tarafında konumlanmaktadır. RSI göstergesi {key_factors.get('rsi_signal', 'Belirsiz')} seviyede olup, volatilite {key_factors.get('volatility', 'Belirsiz')} seviyede seyretmektedir. Hacim verileri ise {key_factors.get('volume_strength', 'Belirsiz')} bir yapı göstermektedir."""
+            
+            # Teknik analiz özeti - bağlamlı ve neden-sonuç ilişkili
+            technical_summary = f"""
 
-Teknik analiz sonuçlarına göre, KCHOL hisse senedinin {result['predicted_price']} TL seviyesine {result['change']:+.2f} TL ({result['change_percent']:+.2f}%) değişimle ulaşması bekleniyor. {trend_text}
+TEKNİK ANALİZ ÖZETİ
+
+KCHOL hisse senedi şu anda {result['current_price']} TL seviyesinde işlem görüyor.
+
+Model tahminine göre hisse senedi {result['predicted_price']:.2f} TL seviyesine ulaşacak.
+
+Beklenen değişim {result['change']:+.2f} TL olacak, bu da {result['change_percent']:+.2f}% anlamına geliyor.
+
+Tahmin tarihi: {result['prediction_date']}
 
 {explanation_text}
 
-{news_insights}
+RİSK UYARISI: Bu analiz sadece teknik göstergelere dayalıdır ve yatırım tavsiyesi değildir. Hisse senedi yatırımları risklidir ve kayıplara yol açabilir. Yatırım kararı vermeden önce kendi araştırmalarınızı yapmalı ve finansal danışmanınızla görüşmelisiniz."""
+            
+            response = f"""KCHOL Hisse Senedi Fiyat Tahmini
 
-Yatırım kararı vermeden önce risk yönetimi yapmanızı ve portföyünüzü çeşitlendirmenizi öneririm."""
-                else:
-                    # Web analizi başarısız, eski yöntemi kullan
-                    print("Web analizi başarısız, eski haber analizi kullanılıyor...")
-                    news_articles = get_news_articles("Koç Holding", days=7)
-                    sentiment_analysis = analyze_news_sentiment(news_articles)
-                    news_prediction = get_news_based_prediction(sentiment_analysis, result)
-                    news_insights = generate_news_insights(sentiment_analysis)
-                    
-                    # Tahmin sonucunu formatla
-                    if news_prediction:
-                        final_result = news_prediction['adjusted_prediction']
-                        sentiment_impact = "Haberler olumlu etki yaratıyor" if sentiment_analysis['overall_sentiment'] == 'positive' else "Haberler olumsuz etki yaratıyor" if sentiment_analysis['overall_sentiment'] == 'negative' else "Haberler nötr etki"
-                    else:
-                        final_result = result
-                        sentiment_impact = "Haber analizi yapılamadı"
-                    
-                    trend_text = "Yükseliş bekleniyor!" if final_result['change'] > 0 else "Düşüş bekleniyor!" if final_result['change'] < 0 else "Fiyat sabit kalabilir"
-                    
-                    # Model açıklamasını ekle
-                    model_explanation = result.get('model_explanation', {})
-                    explanation_text = ""
-                    if model_explanation:
-                        explanation_text = f"""
-
-🔍 MODEL AÇIKLAMASI
-
-Trend Yönü: {model_explanation.get('trend_direction', 'Belirsiz')}
-Güven Seviyesi: {model_explanation.get('confidence', 'Düşük')}
-
-Ana Faktörler:
-"""
-                        for explanation in model_explanation.get('explanations', [])[:5]:  # İlk 5 açıklama
-                            explanation_text += f"• {explanation}\n"
-                    
-                    response = f"""KCHOL Hisse Senedi Fiyat Tahmini
-
-Mevcut durumda KCHOL hisse senedi {result['current_price']} TL seviyesinde işlem görüyor.
-
-Teknik analiz sonuçlarına göre, KCHOL hisse senedinin {final_result['predicted_price']} TL seviyesine {final_result['change']:+.2f} TL ({final_result['change_percent']:+.2f}%) değişimle ulaşması bekleniyor. {trend_text}
+KCHOL hisse senedi şu anda {result['current_price']} TL seviyesinde işlem görüyor. Teknik analiz sonuçlarına göre, hisse senedinin {result['predicted_price']:.2f} TL seviyesine {result['change']:+.2f} TL ({result['change_percent']:+.2f}%) değişimle ulaşması bekleniyor. {trend_text}
 
 {explanation_text}
 
-{news_insights}
+Bu analiz, hisse senedinin geçmiş fiyat hareketleri, teknik göstergeler ve piyasa dinamikleri dikkate alınarak yapılmıştır. Sistemimiz, 200 günlük hareketli ortalama, RSI, MACD, Bollinger Bantları ve hacim verilerini analiz ederek tahmin üretmektedir. Ancak, bu tahminlerin kesinliği ve doğruluğu hakkında kesin bir yorum yapmak mümkün değildir. Tahmin yalnızca bir olasılığı temsil etmektedir.
 
-{sentiment_impact}
-
-Yatırım kararı vermeden önce risk yönetimi yapmanızı ve portföyünüzü çeşitlendirmenizi öneririm."""
-                
-            except Exception as web_error:
-                print(f"Web Search Agent hatası: {web_error}")
-                # Web analizi başarısız, eski yöntemi kullan
-                news_articles = get_news_articles("Koç Holding", days=7)
-                sentiment_analysis = analyze_news_sentiment(news_articles)
-                news_prediction = get_news_based_prediction(sentiment_analysis, result)
-                news_insights = generate_news_insights(sentiment_analysis)
-                
-                # Tahmin sonucunu formatla
-                if news_prediction:
-                    final_result = news_prediction['adjusted_prediction']
-                    sentiment_impact = "Haberler olumlu etki yaratıyor" if sentiment_analysis['overall_sentiment'] == 'positive' else "Haberler olumsuz etki yaratıyor" if sentiment_analysis['overall_sentiment'] == 'negative' else "Haberler nötr etki"
-                else:
-                    final_result = result
-                    sentiment_impact = "Haber analizi yapılamadı"
-                
-                trend_text = "Yükseliş bekleniyor!" if final_result['change'] > 0 else "Düşüş bekleniyor!" if final_result['change'] < 0 else "Fiyat sabit kalabilir"
-                
-                # Model açıklamasını ekle
-                model_explanation = result.get('model_explanation', {})
-                explanation_text = ""
-                if model_explanation:
-                    explanation_text = f"""
-
-🔍 MODEL AÇIKLAMASI
-
-Trend Yönü: {model_explanation.get('trend_direction', 'Belirsiz')}
-Güven Seviyesi: {model_explanation.get('confidence', 'Düşük')}
-
-Ana Faktörler:
-"""
-                    for explanation in model_explanation.get('explanations', [])[:5]:  # İlk 5 açıklama
-                        explanation_text += f"• {explanation}\n"
-                
-                response = f"""KCHOL Hisse Senedi Fiyat Tahmini
-
-Mevcut durumda KCHOL hisse senedi {result['current_price']} TL seviyesinde işlem görüyor.
-
-Teknik analiz sonuçlarına göre, KCHOL hisse senedinin {final_result['predicted_price']} TL seviyesine {final_result['change']:+.2f} TL ({final_result['change_percent']:+.2f}%) değişimle ulaşması bekleniyor. {trend_text}
-
-{explanation_text}
-
-{news_insights}
-
-{sentiment_impact}
-
-Yatırım kararı vermeden önce risk yönetimi yapmanızı ve portföyünüzü çeşitlendirmenizi öneririm."""
+⚠️ RİSK UYARISI: Bu analiz sadece teknik göstergelere dayalıdır ve yatırım tavsiyesi değildir. Hisse senedi yatırımları risklidir ve kayıplara yol açabilir. Yatırım kararı vermeden önce kendi araştırmalarınızı yapmalı ve finansal danışmanınızla görüşmelisiniz."""
             
             # Bot yanıtını oturuma ekle
             add_message_to_session(session_id, 'bot', response, 'prediction', result)

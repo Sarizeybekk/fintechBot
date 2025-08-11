@@ -3601,16 +3601,147 @@ input:checked + .toggle-slider:before {
     display: flex;
     align-items: center;
     gap: 8px;
+    position: relative;
+    overflow: hidden;
 }
 
 .calendar-actions .action-btn:hover {
     background: var(--accent-color);
     color: white;
     border-color: var(--accent-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
 }
 
 .calendar-actions .action-btn i {
     font-size: 16px;
+}
+
+/* CSV Import Button - Special styling */
+.calendar-actions .csv-import-btn {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border-color: #10b981;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+
+.calendar-actions .csv-import-btn:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    border-color: #059669;
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
+    transform: translateY(-2px);
+}
+
+/* CSV Export Button - Special styling */
+.calendar-actions .csv-export-btn {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    border-color: #3b82f6;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+.calendar-actions .csv-export-btn:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    border-color: #2563eb;
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+    transform: translateY(-2px);
+}
+
+/* Refresh Button - Special styling */
+.calendar-actions .refresh-btn {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    border-color: #f59e0b;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);
+}
+
+.calendar-actions .refresh-btn:hover {
+    background: linear-gradient(135deg, #d97706, #b45309);
+    border-color: #d97706;
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4);
+    transform: translateY(-2px);
+}
+
+/* Button icons with better visibility */
+.calendar-actions .csv-import-btn i,
+.calendar-actions .csv-export-btn i,
+.calendar-actions .refresh-btn i {
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Button text with better contrast */
+.calendar-actions .csv-import-btn,
+.calendar-actions .csv-export-btn,
+.calendar-actions .refresh-btn {
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Button spacing and layout improvements */
+.calendar-actions .csv-import-btn,
+.calendar-actions .csv-export-btn,
+.calendar-actions .refresh-btn {
+    min-width: 140px;
+    justify-content: center;
+    position: relative;
+}
+
+/* Button hover effects with smooth transitions */
+.calendar-actions .csv-import-btn::before,
+.calendar-actions .csv-export-btn::before,
+.calendar-actions .refresh-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.calendar-actions .csv-import-btn:hover::before,
+.calendar-actions .csv-export-btn:hover::before,
+.calendar-actions .refresh-btn:hover::before {
+    left: 100%;
+}
+
+/* Button focus states for accessibility */
+.calendar-actions .csv-import-btn:focus,
+.calendar-actions .csv-export-btn:focus,
+.calendar-actions .refresh-btn:focus {
+    outline: 3px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 2px;
+    transform: scale(1.05);
+}
+
+/* Active state for buttons */
+.calendar-actions .action-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Focus state for accessibility */
+.calendar-actions .action-btn:focus {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .calendar-actions .csv-import-btn {
+    background: linear-gradient(135deg, #10b981, #047857);
+    border-color: #10b981;
+}
+
+[data-theme="dark"] .calendar-actions .csv-export-btn {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    border-color: #3b82f6;
+}
+
+[data-theme="dark"] .calendar-actions .refresh-btn {
+    background: linear-gradient(135deg, #f59e0b, #b45309);
+    border-color: #f59e0b;
 }
 
 /* Responsive Design for Calendar Modal */
@@ -3640,10 +3771,19 @@ input:checked + .toggle-slider:before {
     
     .calendar-actions {
         flex-direction: column;
+        gap: 8px;
     }
     
     .calendar-actions .action-btn {
         width: 100%;
+        min-width: auto;
+    }
+    
+    .calendar-actions .csv-import-btn,
+    .calendar-actions .csv-export-btn,
+    .calendar-actions .refresh-btn {
+        padding: 14px 16px;
+        font-size: 13px;
     }
 }
 
