@@ -282,6 +282,10 @@ async function sendMessage(message = null) {
         
         const data = await response.json();
         
+        console.log('API Response Data:', data);
+        console.log('Response type:', data.type);
+        console.log('Response data:', data.data);
+        
         // Bot yanıtını ekle
         addMessage(data.response, 'bot', data.type, data.data);
         

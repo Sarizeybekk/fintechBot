@@ -45,11 +45,15 @@ class TechnicalAnalysisEngine:
             df = yf.download(symbol, start_date, end_date, progress=False)
             
             if df.empty:
+                print(f"Veri alınamadı: {symbol}")
                 return None
             
-            # Sütun isimlerini düzenleme
-            df.columns = ['_'.join(col).lower() for col in df.columns]
-            df.columns = [col.split('_')[0] for col in df.columns]
+            # Sütun isimlerini düzenleme - MultiIndex kontrolü
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = [col[0] for col in df.columns]
+            
+            # Teknik indikatörler - sütun isimlerini küçük harfe çevir
+            df.columns = [col.lower() for col in df.columns]
             
             # Teknik indikatörler
             df['SMA20'] = TA.SMA(df, 20)
@@ -80,8 +84,35 @@ class TechnicalAnalysisEngine:
             df['ATR'] = TA.ATR(df)
             df['Williams'] = TA.WILLIAMS(df)
             
-            # NaN değerleri temizleme
-            df = df.dropna()
+            # NaN değerleri temizleme - sadece temel sütunlarda
+            basic_columns = ['close', 'high', 'low', 'open', 'volume']
+            df_clean = df[basic_columns].dropna()
+            
+            # Teknik indikatörleri sadece mevcut olanlarla ekle
+            if 'SMA20' in df.columns:
+                df_clean['SMA20'] = df['SMA20']
+            if 'SMA50' in df.columns:
+                df_clean['SMA50'] = df['SMA50']
+            if 'SMA200' in df.columns:
+                df_clean['SMA200'] = df['SMA200']
+            if 'RSI' in df.columns:
+                df_clean['RSI'] = df['RSI']
+            if 'MACD' in df.columns:
+                df_clean['MACD'] = df['MACD']
+            if 'MACD_Signal' in df.columns:
+                df_clean['MACD_Signal'] = df['MACD_Signal']
+            if 'BB_Upper' in df.columns:
+                df_clean['BB_Upper'] = df['BB_Upper']
+            if 'BB_Lower' in df.columns:
+                df_clean['BB_Lower'] = df['BB_Lower']
+            if 'BB_Middle' in df.columns:
+                df_clean['BB_Middle'] = df['BB_Middle']
+            if 'ATR' in df.columns:
+                df_clean['ATR'] = df['ATR']
+            if 'Williams' in df.columns:
+                df_clean['Williams'] = df['Williams']
+            
+            return df_clean
             
             return df
         except Exception as e:
@@ -244,7 +275,6 @@ Kod:
             # Grafiği HTML formatında kaydet
             try:
                 # Matplotlib ile grafik oluştur
-                import matplotlib.pyplot as plt
                 import matplotlib.dates as mdates
                 import base64
                 import io
@@ -266,7 +296,7 @@ Kod:
                 fig.patch.set_facecolor('#1e293b')
                 
                 # Hacim grafiği
-                ax2.bar(df.index, df['volume'], color='rgba(0,0,255,0.3)', alpha=0.7)
+                ax2.bar(df.index, df['volume'], color='blue', alpha=0.3)
                 ax2.set_ylabel('Hacim', color='white')
                 ax2.set_xlabel('Tarih', color='white')
                 ax2.grid(True, alpha=0.3)
@@ -330,7 +360,6 @@ Kod:
             
             try:
                 # Matplotlib ile RSI grafiği oluştur
-                import matplotlib.pyplot as plt
                 import matplotlib.dates as mdates
                 import base64
                 import io
@@ -419,7 +448,6 @@ Kod:
             
             try:
                 # Matplotlib ile MACD grafiği oluştur
-                import matplotlib.pyplot as plt
                 import matplotlib.dates as mdates
                 import base64
                 import io
@@ -521,7 +549,6 @@ Kod:
             
             try:
                 # Matplotlib ile Bollinger Bands grafiği oluştur
-                import matplotlib.pyplot as plt
                 import matplotlib.dates as mdates
                 import base64
                 import io
@@ -592,7 +619,6 @@ Kod:
             charts = []
             
             # Matplotlib ile RSI grafiği oluştur
-            import matplotlib.pyplot as plt
             import matplotlib.dates as mdates
             import base64
             import io
@@ -657,7 +683,6 @@ Kod:
             charts = []
             
             # Matplotlib ile MACD grafiği oluştur
-            import matplotlib.pyplot as plt
             import matplotlib.dates as mdates
             import base64
             import io
@@ -765,7 +790,6 @@ Kod:
             
             try:
                 # Matplotlib ile Bollinger Bands grafiği oluştur
-                import matplotlib.pyplot as plt
                 import matplotlib.dates as mdates
                 import base64
                 import io
@@ -872,7 +896,6 @@ Kod:
             
             try:
                 # Matplotlib ile SMA grafiği oluştur
-                import matplotlib.pyplot as plt
                 import matplotlib.dates as mdates
                 import base64
                 import io
@@ -939,28 +962,52 @@ Kod:
         try:
             charts = []
             
-            # Hacim Grafiği
-            fig = go.Figure()
-            
-            fig.add_trace(go.Bar(
-                x=df.index, y=df['volume'],
-                name='Hacim',
-                marker_color='rgba(0,0,255,0.3)'
-            ))
-            
-            fig.update_layout(
-                title='İşlem Hacmi',
-                xaxis_title='Tarih',
-                yaxis_title='Hacim',
-                height=400,
-                template='plotly_dark'
-            )
-            
             try:
-                img_html = fig.to_html(include_plotlyjs=False, full_html=False, config={'displayModeBar': False})
-                img_base64 = img_html
+                # Matplotlib ile hacim grafiği oluştur
+                import matplotlib.dates as mdates
+                import base64
+                import io
+                
+                # Grafik oluştur
+                fig, ax = plt.subplots(figsize=(12, 6))
+                
+                # Hacim grafiği
+                ax.bar(df.index, df['volume'], color='blue', alpha=0.7, label='Hacim')
+                
+                # Grafik ayarları
+                ax.set_title('İşlem Hacmi', color='white', fontsize=14, fontweight='bold')
+                ax.set_xlabel('Tarih', color='white', fontsize=12)
+                ax.set_ylabel('Hacim', color='white', fontsize=12)
+                ax.grid(True, alpha=0.3)
+                ax.legend(loc='upper left')
+                
+                # Tarih formatı
+                ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+                plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
+                
+                # Arka plan rengi
+                ax.set_facecolor('#1e1e1e')
+                fig.patch.set_facecolor('#1e1e1e')
+                
+                # Eksen renkleri
+                ax.tick_params(colors='white')
+                ax.spines['top'].set_visible(False)
+                ax.spines['right'].set_visible(False)
+                ax.spines['bottom'].set_color('white')
+                ax.spines['left'].set_color('white')
+                
+                # Grafiği base64'e çevir
+                buffer = io.BytesIO()
+                plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight', facecolor='#1e1e1e')
+                buffer.seek(0)
+                img_base64 = base64.b64encode(buffer.getvalue()).decode()
+                buffer.close()
+                plt.close()
+                
+                img_base64 = f"<img src=\"data:image/png;base64,{img_base64}\" alt=\"Hacim Grafiği\" style=\"width:100%; height:auto; border-radius:8px;\">"
+                
             except Exception as e:
-                print(f"Hacim grafik HTML hatası: {e}")
+                print(f"Hacim Matplotlib grafik hatası: {e}")
                 img_base64 = "<div style='color:red; padding:20px; text-align:center;'>Hacim Grafik yüklenemedi</div>"
             
             charts.append({
@@ -980,38 +1027,57 @@ Kod:
         try:
             charts = []
             
-            # Fiyat Grafiği
-            fig = go.Figure()
-            
-            fig.add_trace(go.Candlestick(
-                x=df.index,
-                open=df['open'],
-                high=df['high'],
-                low=df['low'],
-                close=df['close'],
-                name='KCHOL',
-                increasing_line_color='#00ff88',
-                decreasing_line_color='#ff4444'
-            ))
-            
-            fig.update_layout(
-                title='KCHOL Fiyat Grafiği',
-                xaxis_title='Tarih',
-                yaxis_title='Fiyat (TL)',
-                height=400,
-                template='plotly_dark'
-            )
-            
             try:
-                img_html = fig.to_html(include_plotlyjs=False, full_html=False, config={'displayModeBar': False})
-                img_base64 = img_html
+                # Matplotlib ile fiyat grafiği oluştur
+                import matplotlib.dates as mdates
+                import base64
+                import io
+                
+                # Grafik oluştur
+                fig, ax = plt.subplots(figsize=(12, 6))
+                
+                # Fiyat grafiği (çizgi olarak)
+                ax.plot(df.index, df['close'], color='white', linewidth=2, label='Fiyat')
+                
+                # Grafik ayarları
+                ax.set_title('KCHOL Fiyat Grafiği', color='white', fontsize=14, fontweight='bold')
+                ax.set_xlabel('Tarih', color='white', fontsize=12)
+                ax.set_ylabel('Fiyat (TL)', color='white', fontsize=12)
+                ax.grid(True, alpha=0.3)
+                ax.legend(loc='upper left')
+                
+                # Tarih formatı
+                ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+                plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
+                
+                # Arka plan rengi
+                ax.set_facecolor('#1e1e1e')
+                fig.patch.set_facecolor('#1e1e1e')
+                
+                # Eksen renkleri
+                ax.tick_params(colors='white')
+                ax.spines['top'].set_visible(False)
+                ax.spines['right'].set_visible(False)
+                ax.spines['bottom'].set_color('white')
+                ax.spines['left'].set_color('white')
+                
+                # Grafiği base64'e çevir
+                buffer = io.BytesIO()
+                plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight', facecolor='#1e1e1e')
+                buffer.seek(0)
+                img_base64 = base64.b64encode(buffer.getvalue()).decode()
+                buffer.close()
+                plt.close()
+                
+                img_base64 = f"<img src=\"data:image/png;base64,{img_base64}\" alt=\"Fiyat Grafiği\" style=\"width:100%; height:auto; border-radius:8px;\">"
+                
             except Exception as e:
-                print(f"Fiyat grafik HTML hatası: {e}")
+                print(f"Fiyat Matplotlib grafik hatası: {e}")
                 img_base64 = "<div style='color:red; padding:20px; text-align:center;'>Fiyat Grafik yüklenemedi</div>"
             
             charts.append({
                 "title": "KCHOL Fiyat Grafiği",
-                "type": "candlestick",
+                "type": "line",
                 "data": img_base64
             })
             

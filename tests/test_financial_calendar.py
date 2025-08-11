@@ -88,7 +88,7 @@ def test_financial_calendar():
     # Test 9: CSV dışa aktarma
     print("\n9. CSV Dışa Aktarma Testi:")
     print("-" * 40)
-    csv_file = "financial_calendar_export.csv"
+    csv_file = "../financial_calendar_export.csv"
     success = calendar.export_to_csv(csv_file)
     print(f"CSV dışa aktarma: {'Başarılı' if success else 'Başarısız'}")
     

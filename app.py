@@ -1091,8 +1091,8 @@ def chat():
                         'session_id': session_id
                     })
         
-        # Teknik analiz soruları - sadece belirli hisse için
-        if any(word in message for word in ['teknik analiz', 'teknik', 'grafik', 'indikatör', 'rsi', 'macd', 'bollinger', 'sma', 'hacim', 'fiyat']) and not any(word in message for word in ['nedir', 'ne demek', 'açıkla', 'anlat']) and (any(word in message.lower() for word in ['kchol', 'koç', 'thyao', 'garan', 'akbnk', 'asels', 'sasa', 'eregl', 'isctr', 'bimas', 'alark', 'tuprs', 'pgsus', 'krdmd', 'tavhl', 'doas', 'toaso', 'froto', 'vestl', 'yapi', 'qnbfb', 'halkb', 'vakbn', 'sise', 'kervn']) or any(word in message.lower() for word in ['teknik analiz yap', 'rsi analizi', 'macd analizi', 'bollinger analizi', 'sma analizi', 'hacim analizi', 'fiyat analizi'])):
+        # Teknik analiz soruları - ÖNCELİKLİ - sadece belirli hisse için
+        if any(word in message for word in ['grafik', 'göster', 'teknik analiz', 'teknik', 'indikatör', 'rsi', 'macd', 'bollinger', 'sma', 'hacim', 'fiyat']) and not any(word in message for word in ['nedir', 'ne demek', 'açıkla', 'anlat']):
             # Teknik analiz yap
             if technical_analysis_engine:
                 try:
@@ -1157,8 +1157,6 @@ Yanıt kuralları:
 
 {result.get('summary', '')}
 
-{charts_html}
-
 ---
 
 YATIRIM STRATEJİSİ ÖNERİLERİ
@@ -1170,8 +1168,6 @@ YATIRIM STRATEJİSİ ÖNERİLERİ
 {result.get('analysis', '')}
 
 {result.get('summary', '')}
-
-{charts_html}
 
 ---
 
@@ -1203,8 +1199,6 @@ Not: Bu öneriler teknik analiz sonuçlarına dayalıdır. Yatırım kararı ver
 
 {result.get('summary', '')}
 
-{charts_html}
-
 ---
 
 YATIRIM STRATEJİSİ ÖNERİLERİ
@@ -1233,8 +1227,6 @@ Not: Bu öneriler teknik analiz sonuçlarına dayalıdır. Yatırım kararı ver
 {result.get('analysis', '')}
 
 {result.get('summary', '')}
-
-{charts_html}
 
 ---
 
@@ -1694,7 +1686,7 @@ Not: Bu öneriler genel bilgi amaçlıdır. Yatırım kararı vermeden önce pro
                     'session_id': session_id
                 })
             
-        elif any(word in message for word in ['hacim', 'volume', 'ortalama hacim', 'xu100', 'bist', 'endeks', 'index', 'rsi', 'macd', 'sma', 'bollinger', 'williams', '70 üstü', '70 üzeri', '70 ustu', '70 uzeri', 'thyao', 'garan', 'akbnk', 'isctr', 'asels', 'eregl', 'sasa']):
+        elif any(word in message for word in ['xu100', 'bist', 'endeks', 'index', '70 üstü', '70 üzeri', '70 ustu', '70 uzeri', 'thyao', 'garan', 'akbnk', 'isctr', 'asels', 'eregl', 'sasa']) and not any(word in message for word in ['grafik', 'göster', 'analiz', 'teknik']):
             # Finansal Q&A Agent ile doğal dil soruları
             if financial_qa_agent:
                 try:
