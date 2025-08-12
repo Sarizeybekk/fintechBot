@@ -45,7 +45,6 @@ class TechnicalAnalysisEngine:
             df = yf.download(symbol, start_date, end_date, progress=False)
             
             if df.empty:
-                print(f"Veri alınamadı: {symbol}")
                 return None
             
             # Sütun isimlerini düzenleme - MultiIndex kontrolü
@@ -113,8 +112,6 @@ class TechnicalAnalysisEngine:
                 df_clean['Williams'] = df['Williams']
             
             return df_clean
-            
-            return df
         except Exception as e:
             print(f"Veri alma hatası: {e}")
             return None
@@ -218,63 +215,12 @@ Kod:
         try:
             charts = []
             
-            # 1. Mum grafiği ve SMA'lar
-            fig1 = make_subplots(
-                rows=2, cols=1,
-                shared_xaxes=True,
-                vertical_spacing=0.03,
-                subplot_titles=('Fiyat Grafiği ve Hareketli Ortalamalar', 'Hacim'),
-                row_width=[0.7, 0.3]
-            )
-            
-            # Mum grafiği
-            fig1.add_trace(go.Candlestick(
-                x=df.index,
-                open=df['open'],
-                high=df['high'],
-                low=df['low'],
-                close=df['close'],
-                name='KCHOL',
-                increasing_line_color='#00ff88',
-                decreasing_line_color='#ff4444'
-            ), row=1, col=1)
-            
-            # SMA'lar
-            fig1.add_trace(go.Scatter(
-                x=df.index, y=df['SMA20'],
-                mode='lines', name='SMA 20',
-                line=dict(color='orange', width=1)
-            ), row=1, col=1)
-            
-            fig1.add_trace(go.Scatter(
-                x=df.index, y=df['SMA50'],
-                mode='lines', name='SMA 50',
-                line=dict(color='blue', width=1)
-            ), row=1, col=1)
-            
-            fig1.add_trace(go.Scatter(
-                x=df.index, y=df['SMA200'],
-                mode='lines', name='SMA 200',
-                line=dict(color='red', width=1)
-            ), row=1, col=1)
-            
-            # Hacim
-            fig1.add_trace(go.Bar(
-                x=df.index, y=df['volume'],
-                name='Hacim',
-                marker_color='rgba(0,0,255,0.3)'
-            ), row=2, col=1)
-            
-            fig1.update_layout(
-                title='KCHOL Teknik Analiz - Fiyat ve Hacim',
-                xaxis_rangeslider_visible=False,
-                height=600,
-                template='plotly_dark'
-            )
+            # 1. Mum grafiği ve SMA'lar - Sadece Matplotlib kullan
             
             # Grafiği HTML formatında kaydet
             try:
                 # Matplotlib ile grafik oluştur
+                import matplotlib.pyplot as plt
                 import matplotlib.dates as mdates
                 import base64
                 import io
@@ -337,29 +283,11 @@ Kod:
                 "data": img_base64
             })
             
-            # 2. RSI Grafiği
-            fig2 = go.Figure()
-            
-            fig2.add_trace(go.Scatter(
-                x=df.index, y=df['RSI'],
-                mode='lines', name='RSI',
-                line=dict(color='purple', width=2)
-            ))
-            
-            fig2.add_hline(y=70, line_dash="dash", line_color="red", annotation_text="Aşırı Alım")
-            fig2.add_hline(y=30, line_dash="dash", line_color="green", annotation_text="Aşırı Satım")
-            fig2.add_hline(y=50, line_dash="dot", line_color="gray", annotation_text="Nötr")
-            
-            fig2.update_layout(
-                title='RSI (Relative Strength Index)',
-                xaxis_title='Tarih',
-                yaxis_title='RSI',
-                height=400,
-                template='plotly_dark'
-            )
+            # 2. RSI Grafiği - Sadece Matplotlib kullan
             
             try:
                 # Matplotlib ile RSI grafiği oluştur
+                import matplotlib.pyplot as plt
                 import matplotlib.dates as mdates
                 import base64
                 import io
@@ -417,37 +345,11 @@ Kod:
                 "data": img_base64
             })
             
-            # 3. MACD Grafiği
-            fig3 = go.Figure()
-            
-            fig3.add_trace(go.Scatter(
-                x=df.index, y=df['MACD'],
-                mode='lines', name='MACD',
-                line=dict(color='blue', width=2)
-            ))
-            
-            fig3.add_trace(go.Scatter(
-                x=df.index, y=df['MACD_Signal'],
-                mode='lines', name='Sinyal',
-                line=dict(color='red', width=2)
-            ))
-            
-            fig3.add_trace(go.Bar(
-                x=df.index, y=df['MACD'] - df['MACD_Signal'],
-                name='Histogram',
-                marker_color='rgba(0,255,0,0.5)'
-            ))
-            
-            fig3.update_layout(
-                title='MACD (Moving Average Convergence Divergence)',
-                xaxis_title='Tarih',
-                yaxis_title='MACD',
-                height=400,
-                template='plotly_dark'
-            )
+            # 3. MACD Grafiği - Sadece Matplotlib kullan
             
             try:
                 # Matplotlib ile MACD grafiği oluştur
+                import matplotlib.pyplot as plt
                 import matplotlib.dates as mdates
                 import base64
                 import io
@@ -511,44 +413,11 @@ Kod:
                 "data": img_base64
             })
             
-            # 4. Bollinger Bands Grafiği
-            fig4 = go.Figure()
-            
-            fig4.add_trace(go.Scatter(
-                x=df.index, y=df['close'],
-                mode='lines', name='Fiyat',
-                line=dict(color='white', width=2)
-            ))
-            
-            fig4.add_trace(go.Scatter(
-                x=df.index, y=df['BB_Upper'],
-                mode='lines', name='Üst Bant',
-                line=dict(color='red', width=1, dash='dash')
-            ))
-            
-            fig4.add_trace(go.Scatter(
-                x=df.index, y=df['BB_Lower'],
-                mode='lines', name='Alt Bant',
-                line=dict(color='green', width=1, dash='dash'),
-                fill='tonexty'
-            ))
-            
-            fig4.add_trace(go.Scatter(
-                x=df.index, y=df['BB_Middle'],
-                mode='lines', name='Orta Bant',
-                line=dict(color='blue', width=1)
-            ))
-            
-            fig4.update_layout(
-                title='Bollinger Bands',
-                xaxis_title='Tarih',
-                yaxis_title='Fiyat (TL)',
-                height=400,
-                template='plotly_dark'
-            )
+            # 4. Bollinger Bands Grafiği - Sadece Matplotlib kullan
             
             try:
                 # Matplotlib ile Bollinger Bands grafiği oluştur
+                import matplotlib.pyplot as plt
                 import matplotlib.dates as mdates
                 import base64
                 import io
@@ -619,6 +488,7 @@ Kod:
             charts = []
             
             # Matplotlib ile RSI grafiği oluştur
+            import matplotlib.pyplot as plt
             import matplotlib.dates as mdates
             import base64
             import io
@@ -683,6 +553,7 @@ Kod:
             charts = []
             
             # Matplotlib ile MACD grafiği oluştur
+            import matplotlib.pyplot as plt
             import matplotlib.dates as mdates
             import base64
             import io
@@ -790,6 +661,7 @@ Kod:
             
             try:
                 # Matplotlib ile Bollinger Bands grafiği oluştur
+                import matplotlib.pyplot as plt
                 import matplotlib.dates as mdates
                 import base64
                 import io
@@ -896,6 +768,7 @@ Kod:
             
             try:
                 # Matplotlib ile SMA grafiği oluştur
+                import matplotlib.pyplot as plt
                 import matplotlib.dates as mdates
                 import base64
                 import io
@@ -961,6 +834,8 @@ Kod:
         """Sadece hacim grafiği oluştur"""
         try:
             charts = []
+            
+            # Hacim Grafiği - Sadece Matplotlib kullan
             
             try:
                 # Matplotlib ile hacim grafiği oluştur
