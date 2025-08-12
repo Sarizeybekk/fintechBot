@@ -1,0 +1,16 @@
+# Gemini API Configuration
+GEMINI_API_KEY=
+GEMINI_MODEL=
+
+# Flask Configuration
+FLASK_ENV=development
+FLASK_DEBUG=True
+
+# Stock Configuration
+STOCK_SYMBOL=
+STOCK_DAYS=300
+
+# Model Configuration
+MODEL_PATH=model/kchol_xgb_model.pkl
+
+SERPAPI_KEY=
