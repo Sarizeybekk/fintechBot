@@ -57,7 +57,6 @@ def hisse_simulasyon(hisse_kodu: str, baslangic_input: str, yatirim_tutari: floa
     except Exception as e:
         return {"hata": str(e)}
 
-# ---------- 🧪 TEST & KULLANICI ARAYÜZÜ -----------
 
 if __name__ == "__main__":
     print("📊 Hisse Senedi Simülasyon Aracı")

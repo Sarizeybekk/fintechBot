@@ -337,7 +337,7 @@ function addMessageToDOM(text, sender, type = 'normal', data = null, scroll = tr
     messageDiv.className = `message ${sender}-message`;
     
     let avatarIcon = sender === 'bot' ? 'fas fa-robot' : 'fas fa-user';
-    let senderName = sender === 'bot' ? 'KCHOL Asistan' : 'Siz';
+    let senderName = sender === 'bot' ? 'Fintra Asistan' : 'Siz';
     
     // Mesaj içeriğini oluştur
     let messageContent = `
@@ -769,14 +769,33 @@ async function loadHtml2Canvas() {
 // Arama modalını aç
 function openSearchModal() {
     const searchModal = document.getElementById('searchModal');
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+    
     searchModal.classList.add('show');
-    document.getElementById('searchInput').focus();
+    
+    // Arama alanını temizle ve odaklan
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+    }
+    
+    // Arama sonuçlarını temizle
+    if (searchResults) {
+        searchResults.innerHTML = '<div class="no-results">Arama yapmak için yazmaya başlayın...</div>';
+    }
 }
 
 // Arama modalını kapat
 function closeSearchModal() {
     const searchModal = document.getElementById('searchModal');
     searchModal.classList.remove('show');
+    
+    // Arama timeout'unu temizle
+    if (window.searchTimeout) {
+        clearTimeout(window.searchTimeout);
+        window.searchTimeout = null;
+    }
 }
 
 // Paylaşım modalını aç
@@ -803,7 +822,7 @@ function updateSharePreview() {
     // Son 5 mesajı al
     const recentMessages = Array.from(messages).slice(-5);
     recentMessages.forEach(msg => {
-        const sender = msg.classList.contains('user-message') ? 'Siz' : 'KCHOL Asistan';
+        const sender = msg.classList.contains('user-message') ? 'Siz' : 'Fintra Asistan';
         const text = msg.querySelector('.message-text').textContent;
         chatContent += `${sender}: ${text}\n`;
     });
@@ -906,64 +925,150 @@ async function downloadChatHistory(format = 'txt') {
 function searchMessages(event) {
     if (event.key === 'Enter') {
         performSearch();
+    } else if (event.key === 'Escape') {
+        closeSearchModal();
+    } else {
+        // Gerçek zamanlı arama (500ms gecikme ile)
+        clearTimeout(window.searchTimeout);
+        window.searchTimeout = setTimeout(() => {
+            const searchTerm = event.target.value.trim();
+            if (searchTerm.length > 0) {
+                performSearch();
+            } else {
+                const searchResults = document.getElementById('searchResults');
+                if (searchResults) {
+                    searchResults.innerHTML = '<div class="no-results">Arama yapmak için yazmaya başlayın...</div>';
+                }
+            }
+        }, 500);
     }
 }
 
 // Arama işlemini gerçekleştir
 function performSearch() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const messages = document.querySelectorAll('.message');
-    const searchResults = document.getElementById('searchResults');
-    
-    if (!searchTerm.trim()) {
-        searchResults.innerHTML = '<div class="no-results">Arama terimi girin</div>';
-        return;
-    }
-    
-    const results = [];
-    messages.forEach((msg, index) => {
-        const text = msg.querySelector('.message-text').textContent.toLowerCase();
-        if (text.includes(searchTerm)) {
-            const sender = msg.classList.contains('user-message') ? 'Siz' : 'KCHOL Asistan';
-            const time = msg.querySelector('.message-time').textContent;
-            results.push({
-                sender,
-                text: msg.querySelector('.message-text').textContent,
-                time,
-                index
-            });
+    try {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const messages = document.querySelectorAll('.message');
+        const searchResults = document.getElementById('searchResults');
+        
+        console.log('Arama yapılıyor:', { searchTerm, messageCount: messages.length });
+        
+        if (!searchResults) {
+            console.error('searchResults element bulunamadı');
+            return;
         }
-    });
-    
-    displaySearchResults(results, searchTerm);
+        
+        if (!searchTerm.trim()) {
+            searchResults.innerHTML = '<div class="no-results">Arama terimi girin</div>';
+            return;
+        }
+        
+        if (messages.length === 0) {
+            searchResults.innerHTML = '<div class="no-results">Henüz mesaj bulunmuyor</div>';
+            return;
+        }
+        
+        const results = [];
+        messages.forEach((msg, index) => {
+            try {
+                const messageText = msg.querySelector('.message-text');
+                const messageTime = msg.querySelector('.message-time');
+                
+                if (messageText && messageTime) {
+                    const text = messageText.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        const sender = msg.classList.contains('user-message') ? 'Siz' : 'Fintra Asistan';
+                        const time = messageTime.textContent;
+                        results.push({
+                            sender,
+                            text: messageText.textContent,
+                            time,
+                            index
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Mesaj işlenirken hata:', error, msg);
+            }
+        });
+        
+        console.log('Arama sonuçları:', results);
+        displayChatSearchResults(results, searchTerm);
+        
+    } catch (error) {
+        console.error('Arama işlemi hatası:', error);
+        const searchResults = document.getElementById('searchResults');
+        if (searchResults) {
+            searchResults.innerHTML = '<div class="no-results">Arama sırasında hata oluştu</div>';
+        }
+    }
 }
 
-// Arama sonuçlarını göster
-function displaySearchResults(results, searchTerm) {
-    const searchResults = document.getElementById('searchResults');
-    
-    if (results.length === 0) {
-        searchResults.innerHTML = '<div class="no-results">Sonuç bulunamadı</div>';
-        return;
-    }
-    
-    let html = '';
-    results.forEach(result => {
-        const highlightedText = result.text.replace(
-            new RegExp(searchTerm, 'gi'),
-            match => `<span class="search-highlight">${match}</span>`
-        );
+// Arama sonuçlarını göster (sohbet araması için)
+function displayChatSearchResults(results, searchTerm) {
+    try {
+        const searchResults = document.getElementById('searchResults');
         
-        html += `
-            <div class="search-result-item" onclick="scrollToMessage(${result.index})">
-                <div class="search-result-sender">${result.sender}</div>
-                <div class="search-result-text">${highlightedText}</div>
-                <div class="search-result-time">${result.time}</div>
-            </div>
-        `;
-    });
-    
-    searchResults.innerHTML = html;
+        if (!searchResults) {
+            console.error('searchResults element bulunamadı');
+            return;
+        }
+        
+        if (!Array.isArray(results)) {
+            console.error('Geçersiz sonuç formatı:', results);
+            searchResults.innerHTML = '<div class="no-results">Arama sonuçları yüklenemedi</div>';
+            return;
+        }
+        
+        if (results.length === 0) {
+            searchResults.innerHTML = '<div class="no-results">Sonuç bulunamadı</div>';
+            return;
+        }
+        
+        let html = '';
+        results.forEach((result, index) => {
+            try {
+                if (result && typeof result === 'object') {
+                    const highlightedText = (result.text || '').replace(
+                        new RegExp(searchTerm, 'gi'),
+                        match => `<span class="search-highlight">${match}</span>`
+                    );
+                    
+                    html += `
+                        <div class="search-result-item" onclick="scrollToMessage(${result.index || index})">
+                            <div class="search-result-sender">${result.sender || 'Bilinmeyen'}</div>
+                            <div class="search-result-text">${highlightedText}</div>
+                            <div class="search-result-time">${result.time || ''}</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Sonuç öğesi işlenirken hata:', error, result);
+            }
+        });
+        
+        searchResults.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Arama sonuçları gösterme hatası:', error);
+        const searchResults = document.getElementById('searchResults');
+        if (searchResults) {
+            searchResults.innerHTML = '<div class="no-results">Sonuçlar gösterilirken hata oluştu</div>';
+        }
+    }
+}
+
+// Mesaja kaydır
+function scrollToMessage(index) {
+    const messages = document.querySelectorAll('.message');
+    if (messages[index]) {
+        messages[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        messages[index].style.backgroundColor = '#fef3c7';
+        setTimeout(() => {
+            messages[index].style.backgroundColor = '';
+        }, 2000);
+        closeSearchModal();
+    }
 }
 
 // Mesaja kaydır
@@ -1408,14 +1513,14 @@ function showWelcomeMessage() {
             </div>
             <div class="message-content">
                 <div class="message-header">
-                    <span class="sender-name">KCHOL Asistan</span>
+                    <span class="sender-name">Fintra Asistan</span>
                     <span class="message-time">${new Date().toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})}</span>
                 </div>
                 <div class="message-text">
-                    <h3>KCHOL Hisse Senedi Fiyat Tahmini Asistanına Hoş Geldiniz!</h3>
+                    <h3> Hisse Senedi Fiyat Tahmini Asistanına Hoş Geldiniz!</h3>
                     <p>Ben yapay zeka destekli bir finans uzmanıyım ve size yardımcı olmak için buradayım.</p>
-                    <p>KCHOL hisse senedi fiyat tahmini yapmak için aşağıdaki önerilerden birini seçebilir veya kendi sorunuzu yazabilirsiniz.</p>
-                    <p><strong>Yeni Özellik:</strong> Artık KCHOL, finans, yatırım ve ekonomi hakkında her türlü sorunuzu yanıtlayabilirim!</p>
+                    <p> Hisse senedi fiyat tahmini yapmak için aşağıdaki önerilerden birini seçebilir veya kendi sorunuzu yazabilirsiniz.</p>
+                    <p><strong>Yeni Özellik:</strong> Artık Finans, yatırım ve ekonomi hakkında her türlü sorunuzu yanıtlayabilirim!</p>
                 </div>
             </div>
         </div>
