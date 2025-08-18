@@ -162,11 +162,8 @@ GEMINI_MODEL=gemini-1.5-flash
 ### Fiyat Tahmini ve Analiz
 ```
 "KCHOL hisse senedi için fiyat tahmini yap"
-"THYAO ne olacak?"
-"GARAN yükselir mi?"
 "KCHOL bugün neden düştü?"
-"THYAO'nun yarınki fiyatı ne olur?"
-"GARAN'da trend değişimi var mı?"
+
 ```
 
 ### Teknik Analiz ve Grafikler
@@ -176,8 +173,6 @@ GEMINI_MODEL=gemini-1.5-flash
 "MACD göstergesi nedir?"
 "Bollinger Bands analizi yap"
 "KCHOL'da destek ve direnç seviyeleri neler?"
-"THYAO için hacim analizi göster"
-"GARAN'da volatilite analizi yap"
 ```
 
 ### Portföy Simülasyonu ve Analiz
@@ -205,8 +200,6 @@ GEMINI_MODEL=gemini-1.5-flash
 ```
 "KCHOL hakkında son haberleri analiz et"
 "Koç Holding ile ilgili haber sentiment'i nedir?"
-"THYAO'da bugün neden hareket var?"
-"GARAN hakkında son gelişmeler neler?"
 "Haber analizi yap"
 ```
 
@@ -230,20 +223,10 @@ GEMINI_MODEL=gemini-1.5-flash
 "Düşüşte alım stratejisi nasıl uygulanır?"
 ```
 
-### Portföy Yönetimi
-```
-"Portföyüme KCHOL ekle - 100 adet, 150 TL ortalama"
-"THYAO pozisyonumu 50 adet azalt"
-"Portföy değerimi hesapla"
-"Kar/zarar durumumu göster"
-"Portföy çeşitlendirme skorumu hesapla"
-"En riskli pozisyonum hangisi?"
-```
 
 ### Gelişmiş Analiz Sorguları
 ```
 "Son 6 ayda THYAO'nun ortalama hacmi nedir?"
-"XU100 endeksinden hangi hisseler bugün düştü?"
 "Bana RSI'si 70 üstü olan hisseleri listeler misin?"
 "KCHOL'un RSI değeri nedir?"
 "GARAN'ın son 3 aylık hacim analizi"
@@ -299,42 +282,7 @@ GEMINI_MODEL=gemini-1.5-flash
 - **RAG Sistemi**: PDF, CSV, TXT dosyalarından bilgi çıkarma ve indeksleme
 - **Kişiselleştirme**: Risk profili, yatırım hedefleri, deneyim seviyesi
 - **Eğitim Modülü**: Finansal kavramlar, teknik analiz, risk yönetimi
-- **Çok Dilli Destek**: Türkçe, İngilizce, Almanca (kısmi)
-
-### Web Arayüzü ve UX
-- **Responsive Tasarım**: Bootstrap 5, CSS Grid, Flexbox ile modern layout
-- **Real-time Chat**: AJAX ile hızlı mesajlaşma, typing indicators
-- **Sohbet Yönetimi**: Oturum bazlı sohbet, arama, filtreleme
-- **Tema Sistemi**: Açık/koyu tema, özelleştirilebilir renkler
-- **Mobil Optimizasyon**: Touch-friendly, responsive breakpoints
-- **Accessibility**: ARIA labels, keyboard navigation, screen reader desteği
-
-### Veri Yönetimi ve Performans
-- **SQLite Veritabanı**: ACID uyumlu, transaction desteği
-- **Caching Sistemi**: Redis benzeri in-memory cache (hazır altyapı)
-- **API Rate Limiting**: Token bucket algoritması ile aşırı yüklenme önleme
-- **Asenkron İşlemler**: Background task processing, queue sistemi
-- **Log Yönetimi**: Structured logging, log rotation, error tracking
-- **Monitoring**: Performance metrics, health checks, alerting
-
-## Geliştirme ve Katkı
-
-### Geliştirme Ortamı Kurulumu
-1. Repository'yi fork edin
-2. Feature branch oluşturun
-3. Değişikliklerinizi commit edin
-4. Pull request gönderin
-
-### Test Çalıştırma
-```bash
-python -m pytest tests/
-```
-
-### Kod Kalitesi
-- PEP 8 kod stili uyumluluğu
-- Type hints kullanımı
-- Docstring dokümantasyonu
-- Unit test coverage
+- **Çok Dilli Destek**: Türkçe, İngilizce sesli komut destegiyle kullanıcıya kolaylık sağlar.
 
 
 
