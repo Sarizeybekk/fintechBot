@@ -121,7 +121,7 @@ class PortfolioManager:
                             price = result['meta']['regularMarketPrice']
                             if price and price > 0:
                                 prices[symbol] = price
-                                print(f"✅ {symbol} Yahoo fiyatı: {price} TL")
+                                print(f" {symbol} Yahoo fiyatı: {price} TL")
                                 continue
                         
                         # Alternatif fiyat kaynakları
@@ -131,7 +131,7 @@ class PortfolioManager:
                                 price = quote['close'][-1]
                                 if price and price > 0:
                                     prices[symbol] = price
-                                    print(f"✅ {symbol} Yahoo alternatif fiyatı: {price} TL")
+                                    print(f" {symbol} Yahoo alternatif fiyatı: {price} TL")
                                     continue
                 
                 # Yahoo Finance başarısız olursa, alternatif API'leri dene
@@ -155,10 +155,10 @@ class PortfolioManager:
                             
                             if price > 0:
                                 prices[symbol] = price
-                                print(f"✅ {symbol} Finans API fiyatı: {price} TL")
+                                print(f" {symbol} Finans API fiyatı: {price} TL")
                                 continue
                 except Exception as e:
-                    print(f"⚠️ Finans API hatası ({symbol}): {e}")
+                    print(f" Finans API hatası ({symbol}): {e}")
                 
                 # Tüm API'ler başarısız olursa, varsayılan fiyat kullan
                 if symbol not in prices:
@@ -171,16 +171,16 @@ class PortfolioManager:
                     
                     if symbol in test_prices:
                         prices[symbol] = test_prices[symbol]
-                        print(f"🧪 {symbol} test fiyatı: {test_prices[symbol]} TL")
+                        print(f" {symbol} test fiyatı: {test_prices[symbol]} TL")
                     else:
                         prices[symbol] = 0.0
-                        print(f"❌ {symbol} için fiyat bulunamadı")
+                        print(f" {symbol} için fiyat bulunamadı")
                         
             except Exception as e:
-                print(f"❌ {symbol} fiyatı alınırken hata: {e}")
+                print(f" {symbol} fiyatı alınırken hata: {e}")
                 prices[symbol] = 0.0
         
-        print(f"📋 Toplam fiyatlar: {prices}")
+        print(f" Toplam fiyatlar: {prices}")
         return prices
     
     def calculate_portfolio_value(self, user_id: str) -> Dict:

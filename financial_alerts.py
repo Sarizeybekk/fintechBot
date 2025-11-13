@@ -28,26 +28,21 @@ class FinancialAlertSystem:
     
     def init_database(self):
         """Veritabanını başlat ve tabloları oluştur"""
-        conn = sqlite3.connect(self.db_file)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS financial_alerts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id TEXT NOT NULL,
-                symbol TEXT NOT NULL,
-                event_type TEXT NOT NULL,
-                event_date TEXT NOT NULL,
-                alert_date TEXT NOT NULL,
-                description TEXT NOT NULL,
-                status TEXT DEFAULT 'active',
-                created_at TEXT NOT NULL,
-                triggered_at TEXT
-            )
-        ''')
-        
-        conn.commit()
-        conn.close()
+        with sqlite3.connect(self.db_file) as conn:
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS financial_alerts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    symbol TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    event_date TEXT NOT NULL,
+                    alert_date TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    status TEXT DEFAULT 'active',
+                    created_at TEXT NOT NULL,
+                    triggered_at TEXT
+                )
+            ''')
     
     def create_alert(self, user_id: str, symbol: str, event_type: str, 
                      event_date: str, description: str, days_before: int = 1) -> Dict:
@@ -64,18 +59,13 @@ class FinancialAlertSystem:
             alert_date = alert_dt.strftime("%Y-%m-%d")
             created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
-            conn = sqlite3.connect(self.db_file)
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                INSERT INTO financial_alerts 
-                (user_id, symbol, event_type, event_date, alert_date, description, status, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (user_id, symbol, event_type, event_date, alert_date, description, 'active', created_at))
-            
-            alert_id = cursor.lastrowid
-            conn.commit()
-            conn.close()
+            with sqlite3.connect(self.db_file) as conn:
+                result = conn.execute('''
+                    INSERT INTO financial_alerts 
+                    (user_id, symbol, event_type, event_date, alert_date, description, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (user_id, symbol, event_type, event_date, alert_date, description, 'active', created_at))
+                alert_id = result.lastrowid
             
             return {
                 'success': True,
@@ -91,17 +81,12 @@ class FinancialAlertSystem:
     
     def get_user_alerts(self, user_id: str, status: str = 'active') -> List[FinancialAlert]:
         """Kullanıcının alarmlarını getir"""
-        conn = sqlite3.connect(self.db_file)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT * FROM financial_alerts 
-            WHERE user_id = ? AND status = ?
-            ORDER BY alert_date ASC
-        ''', (user_id, status))
-        
-        rows = cursor.fetchall()
-        conn.close()
+        with sqlite3.connect(self.db_file) as conn:
+            rows = conn.execute('''
+                SELECT * FROM financial_alerts 
+                WHERE user_id = ? AND status = ?
+                ORDER BY alert_date ASC
+            ''', (user_id, status)).fetchall()
         
         alerts = []
         for row in rows:
@@ -125,17 +110,12 @@ class FinancialAlertSystem:
         """Tetiklenmeyi bekleyen alarmları getir"""
         today = date.today().strftime("%Y-%m-%d")
         
-        conn = sqlite3.connect(self.db_file)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT * FROM financial_alerts 
-            WHERE status = 'active' AND alert_date <= ?
-            ORDER BY alert_date ASC
-        ''', (today,))
-        
-        rows = cursor.fetchall()
-        conn.close()
+        with sqlite3.connect(self.db_file) as conn:
+            rows = conn.execute('''
+                SELECT * FROM financial_alerts 
+                WHERE status = 'active' AND alert_date <= ?
+                ORDER BY alert_date ASC
+            ''', (today,)).fetchall()
         
         alerts = []
         for row in rows:
@@ -158,19 +138,14 @@ class FinancialAlertSystem:
     def mark_alert_triggered(self, alert_id: int) -> bool:
         """Alarmı tetiklendi olarak işaretle"""
         try:
-            conn = sqlite3.connect(self.db_file)
-            cursor = conn.cursor()
-            
             triggered_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
-            cursor.execute('''
-                UPDATE financial_alerts 
-                SET status = 'triggered', triggered_at = ?
-                WHERE id = ?
-            ''', (triggered_at, alert_id))
-            
-            conn.commit()
-            conn.close()
+            with sqlite3.connect(self.db_file) as conn:
+                conn.execute('''
+                    UPDATE financial_alerts 
+                    SET status = 'triggered', triggered_at = ?
+                    WHERE id = ?
+                ''', (triggered_at, alert_id))
             return True
             
         except Exception as e:
@@ -180,17 +155,12 @@ class FinancialAlertSystem:
     def cancel_alert(self, alert_id: int, user_id: str) -> bool:
         """Alarmı iptal et"""
         try:
-            conn = sqlite3.connect(self.db_file)
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                UPDATE financial_alerts 
-                SET status = 'cancelled'
-                WHERE id = ? AND user_id = ?
-            ''', (alert_id, user_id))
-            
-            conn.commit()
-            conn.close()
+            with sqlite3.connect(self.db_file) as conn:
+                conn.execute('''
+                    UPDATE financial_alerts 
+                    SET status = 'cancelled'
+                    WHERE id = ? AND user_id = ?
+                ''', (alert_id, user_id))
             return True
             
         except Exception as e:
@@ -200,16 +170,11 @@ class FinancialAlertSystem:
     def delete_alert(self, alert_id: int, user_id: str) -> bool:
         """Alarmı sil"""
         try:
-            conn = sqlite3.connect(self.db_file)
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                DELETE FROM financial_alerts 
-                WHERE id = ? AND user_id = ?
-            ''', (alert_id, user_id))
-            
-            conn.commit()
-            conn.close()
+            with sqlite3.connect(self.db_file) as conn:
+                conn.execute('''
+                    DELETE FROM financial_alerts 
+                    WHERE id = ? AND user_id = ?
+                ''', (alert_id, user_id))
             return True
             
         except Exception as e:

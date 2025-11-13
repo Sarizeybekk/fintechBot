@@ -18,3 +18,5 @@ scipy>=1.10.0
 dateparser
 beautifulsoup4>=4.11.0
 lxml>=4.9.0
+textblob
+dotenv

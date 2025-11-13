@@ -33,9 +33,9 @@ GEMINI_API_KEY = os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
     gemini_model = genai.GenerativeModel(os.getenv('GEMINI_MODEL', 'gemini-1.5-flash'))
-    print(f"✅ Gemini API anahtarı yüklendi: {GEMINI_API_KEY[:10]}...")
+    print(f" Gemini API anahtarı yüklendi: {GEMINI_API_KEY[:10]}...")
 else:
-    print("⚠️  Gemini API anahtarı bulunamadı. .env dosyasında GOOGLE_API_KEY veya GEMINI_API_KEY tanımlayın.")
+    print("Gemini API anahtarı bulunamadı. .env dosyasında GOOGLE_API_KEY veya GEMINI_API_KEY tanımlayın.")
     gemini_model = None
 
 # News API Configuration
@@ -71,44 +71,44 @@ except Exception as e:
 try:
     from investment_advisor import InvestmentAdvisor
     investment_advisor = InvestmentAdvisor()
-    print("✅ Investment Advisor başarıyla yüklendi")
+    print("Investment Advisor başarıyla yüklendi")
 except Exception as e:
-    print(f"❌ Investment Advisor yüklenemedi: {e}")
+    print(f"Investment Advisor yüklenemedi: {e}")
     investment_advisor = None
 
 # Hisse simülasyon modülünü import et
 try:
     from hisse_simulasyon import hisse_simulasyon
-    print("✅ Hisse Simülasyon modülü başarıyla yüklendi")
+    print("Hisse Simülasyon modülü başarıyla yüklendi")
 except Exception as e:
-    print(f"❌ Hisse Simülasyon modülü yüklenemedi: {e}")
+    print(f"Hisse Simülasyon modülü yüklenemedi: {e}")
     hisse_simulasyon = None
 
 # Initialize Portfolio Manager
 try:
     from portfolio_manager import PortfolioManager
     portfolio_manager = PortfolioManager()
-    print("✅ Portfolio Manager başarıyla yüklendi")
+    print("Portfolio Manager başarıyla yüklendi")
 except Exception as e:
-    print(f"❌ Portfolio Manager yüklenemedi: {e}")
+    print(f"Portfolio Manager yüklenemedi: {e}")
     portfolio_manager = None
 
 # Initialize Financial Calendar
 try:
     from financial_calendar import FinancialCalendar
     financial_calendar = FinancialCalendar()
-    print("✅ Financial Calendar başarıyla yüklendi")
+    print("Financial Calendar başarıyla yüklendi")
 except Exception as e:
-    print(f"❌ Financial Calendar yüklenemedi: {e}")
+    print(f"Financial Calendar yüklenemedi: {e}")
     financial_calendar = None
 
 # Initialize Financial Alert System
 try:
     from financial_alerts import FinancialAlertSystem
     financial_alert_system = FinancialAlertSystem()
-    print("✅ Financial Alert System başarıyla yüklendi")
+    print("Financial Alert System başarıyla yüklendi")
 except Exception as e:
-    print(f"❌ Financial Alert System yüklenemedi: {e}")
+    print(f"Financial Alert System yüklenemedi: {e}")
     financial_alert_system = None
 
 # Sohbet geçmişi yönetimi
@@ -1363,7 +1363,7 @@ KCHOL hisse senedi şu anda {result['current_price']} TL seviyesinde işlem gör
 
 Bu analiz, hisse senedinin geçmiş fiyat hareketleri, teknik göstergeler ve piyasa dinamikleri dikkate alınarak yapılmıştır. Sistemimiz, 200 günlük hareketli ortalama, RSI, MACD, Bollinger Bantları ve hacim verilerini analiz ederek tahmin üretmektedir. Ancak, bu tahminlerin kesinliği ve doğruluğu hakkında kesin bir yorum yapmak mümkün değildir. Tahmin yalnızca bir olasılığı temsil etmektedir.
 
-⚠️ RİSK UYARISI: Bu analiz sadece teknik göstergelere dayalıdır ve yatırım tavsiyesi değildir. Hisse senedi yatırımları risklidir ve kayıplara yol açabilir. Yatırım kararı vermeden önce kendi araştırmalarınızı yapmalı ve finansal danışmanınızla görüşmelisiniz."""
+ RİSK UYARISI: Bu analiz sadece teknik göstergelere dayalıdır ve yatırım tavsiyesi değildir. Hisse senedi yatırımları risklidir ve kayıplara yol açabilir. Yatırım kararı vermeden önce kendi araştırmalarınızı yapmalı ve finansal danışmanınızla görüşmelisiniz."""
             
             # Bot yanıtını oturuma ekle
             add_message_to_session(session_id, 'bot', response, 'prediction', result)
@@ -1662,11 +1662,11 @@ Not: Bu öneriler genel bilgi amaçlıdır. Yatırım kararı vermeden önce pro
 • **Net Kazanç:** {sim_result['net kazanç']:,.2f} TL
 • **Getiri Oranı:** %{sim_result['getiri %']:.2f}
 
-{'🟢 **KARLILIK**' if sim_result['net kazanç'] > 0 else '🔴 **ZARAR**' if sim_result['net kazanç'] < 0 else '⚪ **BREAKEVEN**'}
+{'**KARLILIK**' if sim_result['net kazanç'] > 0 else '**ZARAR**' if sim_result['net kazanç'] < 0 else '⚪ **BREAKEVEN**'}
 
-⚠️ **Risk Uyarısı:** Bu simülasyon geçmiş verilere dayalıdır. Gelecekteki performans garantisi vermez. Yatırım kararı vermeden önce profesyonel danışmanlık alın."""
+ **Risk Uyarısı:** Bu simülasyon geçmiş verilere dayalıdır. Gelecekteki performans garantisi vermez. Yatırım kararı vermeden önce profesyonel danışmanlık alın."""
                     else:
-                        response = f"❌ Simülasyon hatası: {sim_result['hata']}"
+                        response = f"Simülasyon hatası: {sim_result['hata']}"
                     
                     add_message_to_session(session_id, 'bot', response, 'simulation', sim_result)
                     return jsonify({

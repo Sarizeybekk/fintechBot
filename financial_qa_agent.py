@@ -27,9 +27,9 @@ class FinancialQAAgent:
         if self.gemini_api_key:
             genai.configure(api_key=self.gemini_api_key)
             self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
-            print("✅ Financial Q&A Agent - Gemini API bağlantısı kuruldu")
+            print(" Financial Q&A Agent - Gemini API bağlantısı kuruldu")
         else:
-            print("⚠️ Financial Q&A Agent - Gemini API anahtarı bulunamadı")
+            print("Financial Q&A Agent - Gemini API anahtarı bulunamadı")
             self.gemini_model = None
         
         # Logging
@@ -347,7 +347,7 @@ RSI, bir hisse senedinin aşırı alım veya aşırı satım bölgesinde olup ol
 • Durum: {rsi_status}
 • Tavsiye: {rsi_advice}
 
-**⚠️ Önemli Not:**
+**Önemli Not:**
 RSI tek başına yeterli değildir. Diğer göstergelerle birlikte kullanılmalıdır.
 
 **🔗 İlgili Terimler:**
@@ -394,7 +394,7 @@ RSI, bir hisse senedinin aşırı alım veya aşırı satım bölgesinde olup ol
 KCHOL hissesi için RSI değeri hesaplayabilirsiniz:
 "KCHOL'un RSI değeri nedir?"
 
-**⚠️ Önemli Not:**
+**Önemli Not:**
 RSI tek başına yeterli değildir. Diğer göstergelerle birlikte kullanılmalıdır.
 
 **🔗 İlgili Terimler:**
@@ -454,7 +454,7 @@ Volatilite, bir hisse senedinin fiyatının ne kadar dalgalandığını göstere
 • Volatilite Seviyesi: {vol_level}
 • Risk Değerlendirmesi: {vol_advice}
 
-**⚠️ Önemli Not:**
+**Önemli Not:**
 Yüksek volatilite hem fırsat hem de risk demektir.
 
 **🔗 İlgili Terimler:**
@@ -501,7 +501,7 @@ Volatilite, bir hisse senedinin fiyatının ne kadar dalgalandığını göstere
 **💡 Pratik Örnek:**
 "GARAN'ın volatilitesi nedir?" diye sorabilirsiniz.
 
-**⚠️ Önemli Not:**
+**Önemli Not:**
 Yüksek volatilite hem fırsat hem de risk demektir.
 
 **🔗 İlgili Terimler:**
@@ -563,7 +563,7 @@ SMA, belirli bir dönemdeki fiyatların ortalamasını alarak trend yönünü g�
 • Trend: {trend}
 • Sinyal: {signal}
 
-**⚠️ Önemli Not:**
+**Önemli Not:**
 SMA'lar geçmiş verilere dayanır, geleceği garanti etmez.
 
 **🔗 İlgili Terimler:**
@@ -612,7 +612,7 @@ SMA, belirli bir dönemdeki fiyatların ortalamasını alarak trend yönünü g�
 **💡 Pratik Örnek:**
 "THYAO'nun SMA 20 ve SMA 50 değerleri nedir?" diye sorabilirsiniz.
 
-**⚠️ Önemli Not:**
+**Önemli Not:**
 SMA'lar geçmiş verilere dayanır, geleceği garanti etmez.
 
 **🔗 İlgili Terimler:**
@@ -647,7 +647,7 @@ MACD, iki farklı periyottaki hareketli ortalamaların farkını kullanarak mome
 **💡 Pratik Örnek:**
 "KCHOL'un MACD değerleri nedir?" diye sorabilirsiniz.
 
-**⚠️ Önemli Not:**
+**Önemli Not:**
 MACD gecikmeli bir göstergedir, trend değişimlerini geç gösterir.
 
 **🔗 İlgili Terimler:**
@@ -682,7 +682,7 @@ Bollinger Bands, fiyat volatilitesini ve olası destek/direnç seviyelerini gös
 **💡 Pratik Örnek:**
 "GARAN'ın Bollinger Bands değerleri nedir?" diye sorabilirsiniz.
 
-**⚠️ Önemli Not:**
+**Önemli Not:**
 Bollinger Bands trend yönünü göstermez, sadece volatilite ve aşırı alım/satım bölgelerini gösterir.
 
 **🔗 İlgili Terimler:**
@@ -719,7 +719,7 @@ Hacim, belirli bir dönemde işlem gören hisse senedi sayısını gösterir.
 • Hacim Değişimi: %{volume_data['volume_change_percent']:.1f}
 • Hacim Trendi: {volume_data['volume_trend']}
 
-**⚠️ Önemli Not:**
+**Önemli Not:**
 Hacim, fiyat hareketlerinin güvenilirliğini doğrular.
 
 **🔗 İlgili Terimler:**
@@ -756,7 +756,7 @@ Hacim, belirli bir dönemde işlem gören hisse senedi sayısını gösterir.
 **💡 Pratik Örnek:**
 "AKBNK'nın son 1 aylık hacim analizi" diye sorabilirsiniz.
 
-**⚠️ Önemli Not:**
+**Önemli Not:**
 Hacim, fiyat hareketlerinin güvenilirliğini doğrular.
 
 **🔗 İlgili Terimler:**
@@ -789,7 +789,7 @@ Beta, bir hisse senedinin piyasa ortalamasına göre ne kadar volatil olduğunu 
 **💡 Örnek:**
 Beta = 1.5 olan bir hisse, piyasa %10 yükseldiğinde %15 yükselir.
 
-**⚠️ Önemli Not:**
+**Önemli Not:**
 Beta, sistematik riski ölçer."""
         
         elif 'pe' in question_lower or 'f/k' in question_lower:
@@ -806,7 +806,7 @@ P/E oranı, bir hisse senedinin fiyatının kazancının kaç katı olduğunu g�
 **💡 Hesaplama:**
 P/E = Hisse Fiyatı / Hisse Başına Kazanç
 
-**⚠️ Önemli Not:**
+**Önemli Not:**
 P/E tek başına yeterli değildir, büyüme ve sektör analizi gerekir."""
         
         elif 'dividend' in question_lower or 'temettü' in question_lower:
@@ -825,7 +825,7 @@ Temettü, şirketin karının bir kısmını hissedarlarına dağıtmasıdır.
 • Şirket güvenilirliği göstergesi
 • Vergi avantajı
 
-**⚠️ Önemli Not:**
+**Önemli Not:**
 Temettü garantisi yoktur, şirket karına bağlıdır."""
         
         else:
@@ -848,7 +848,7 @@ Temettü garantisi yoktur, şirket karına bağlıdır."""
 **💡 Nasıl Öğrenirim?**
 "RSI nedir?", "Volatilite ne demek?" gibi sorular sorabilirsiniz.
 
-**⚠️ Önemli Not:**
+**Önemli Not:**
 Her terim için gerçek örneklerle açıklama alabilirsiniz."""
         
         return {
@@ -1168,7 +1168,7 @@ Yanıtını ver:
 💡 Yorum:
 {self._get_volume_interpretation(volume_change, volume_volatility)}
 
-⚠️ Risk Uyarısı: Bu analiz sadece bilgilendirme amaçlıdır. Yatırım kararı vermeden önce profesyonel danışmanlık alın."""
+Risk Uyarısı: Bu analiz sadece bilgilendirme amaçlıdır. Yatırım kararı vermeden önce profesyonel danışmanlık alın."""
             
             elif question_type == 'index_analysis' and analysis_data:
                 return f"""BIST 100 Endeks Analizi

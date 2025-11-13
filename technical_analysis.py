@@ -23,9 +23,9 @@ import os
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
 if GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
-    print(f"✅ Gemini API anahtarı yüklendi: {GOOGLE_API_KEY[:10]}...")
+    print(f" Gemini API anahtarı yüklendi: {GOOGLE_API_KEY[:10]}...")
 else:
-    print("⚠️  Gemini API anahtarı bulunamadı. .env dosyasında GOOGLE_API_KEY veya GEMINI_API_KEY tanımlayın.")
+    print("  Gemini API anahtarı bulunamadı. .env dosyasında GOOGLE_API_KEY veya GEMINI_API_KEY tanımlayın.")
 
 class TechnicalAnalysisEngine:
     def __init__(self):

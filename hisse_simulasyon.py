@@ -59,7 +59,7 @@ def hisse_simulasyon(hisse_kodu: str, baslangic_input: str, yatirim_tutari: floa
 
 
 if __name__ == "__main__":
-    print("📊 Hisse Senedi Simülasyon Aracı")
+    print("Hisse Senedi Simülasyon Aracı")
     print("-------------------------------------")
 
     hisse = input("Hisse kodunu girin (örn: THYAO.IS, ALARK.IS): ").strip().upper()
@@ -69,11 +69,11 @@ if __name__ == "__main__":
     try:
         tutar = float(tutar_input)
     except ValueError:
-        print("❌ Geçersiz tutar!")
+        print(" Geçersiz tutar!")
         exit()
 
     sonuc = hisse_simulasyon(hisse, tarih, tutar)
 
-    print("\n📈 Simülasyon Sonucu:")
+    print("\n Simülasyon Sonucu:")
     for k, v in sonuc.items():
         print(f"{k}: {v}")

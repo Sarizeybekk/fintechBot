@@ -22,15 +22,15 @@ class WebSearchAgent:
         if self.gemini_api_key:
             genai.configure(api_key=self.gemini_api_key)
             self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
-            print("✅ Web Search Agent - Gemini API bağlantısı kuruldu")
+            print(" Web Search Agent - Gemini API bağlantısı kuruldu")
         else:
-            print("⚠️ Web Search Agent - Gemini API anahtarı bulunamadı")
+            print("Web Search Agent - Gemini API anahtarı bulunamadı")
             self.gemini_model = None
         
         if self.serpapi_key:
-            print("✅ Web Search Agent - SerpAPI bağlantısı kuruldu")
+            print(" Web Search Agent - SerpAPI bağlantısı kuruldu")
         else:
-            print("⚠️ Web Search Agent - SerpAPI anahtarı bulunamadı, basit arama kullanılacak")
+            print(" Web Search Agent - SerpAPI anahtarı bulunamadı, basit arama kullanılacak")
         
         # Arama motorları
         self.search_engines = {
